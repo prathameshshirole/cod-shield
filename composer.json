@@ -1,0 +1,46 @@
+{
+    "name": "prathaverse/cod-shield",
+    "description": "Reduce COD RTO by collecting a partial advance payment via existing WooCommerce gateways, with a global COD kill switch, extra COD fee and transparent checkout messaging.",
+    "type": "wordpress-plugin",
+    "license": "MIT",
+    "keywords": [
+        "woocommerce",
+        "cod",
+        "cash-on-delivery",
+        "rto",
+        "advance-payment"
+    ],
+    "require": {
+        "php": ">=8.1"
+    },
+    "require-dev": {
+        "php-stubs/woocommerce-stubs": "^10.9",
+        "php-stubs/wordpress-stubs": "^7.0",
+        "phpunit/phpunit": "^10.5 || ^11.0",
+        "squizlabs/php_codesniffer": "^3.10",
+        "wp-coding-standards/wpcs": "^3.1"
+    },
+    "config": {
+        "allow-plugins": {
+            "dealerdirect/phpcodesniffer-composer-installer": true
+        },
+        "sort-packages": true
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "CodShield\\Tests\\": "tests/unit/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit && php tests/run-lifecycle.php",
+        "test:standalone": "php tests/run-tests.php",
+        "test:lifecycle": "php tests/run-lifecycle.php",
+        "lint": "phpcs",
+        "lint:fix": "phpcbf",
+        "pot": "wp i18n make-pot . languages/cod-shield.pot --slug=cod-shield --domain=cod-shield"
+    },
+    "support": {
+        "issues": "https://wordpress.org/support/plugin/cod-shield/",
+        "source": "https://wordpress.org/plugins/cod-shield/"
+    }
+}

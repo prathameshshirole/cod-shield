@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: GitHub Discussions
+    url: https://github.com/prathameshshirole/cod-shield/discussions
+    about: Ideas, Q&A, and community chat — open a discussion instead of an issue for questions and feature brainstorming.
+  - name: WordPress.org Support Forum
+    url: https://wordpress.org/support/plugin/cod-shield/
+    about: Get help with installation, configuration, and usage — the fastest place to ask questions.
+  - name: Security Vulnerabilities
+    url: https://github.com/prathameshshirole/cod-shield/security/advisories
+    about: Please report security vulnerabilities privately via GitHub's private vulnerability reporting — do not open a public issue.

@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<ruleset name="COD Shield for WooCommerce">
+	<description>PHP_CodeSniffer ruleset for COD Shield for WooCommerce.</description>
+
+	<file>.</file>
+
+	<exclude-pattern>*/index.php</exclude-pattern>
+	<exclude-pattern>*/languages/*</exclude-pattern>
+	<exclude-pattern>*/vendor/*</exclude-pattern>
+	<exclude-pattern>*/node_modules/*</exclude-pattern>
+	<exclude-pattern>*/docs/*</exclude-pattern>
+	<exclude-pattern>*/tests/*</exclude-pattern>
+
+	<arg name="extensions" value="php"/>
+	<arg value="sp"/>
+
+	<rule ref="WordPress"/>
+
+	<!--
+		Project conventions (intentional deviations from the default WPCS set):
+		1. WPPB-style file naming (class-cod-shield-*.php): the plugin slug is
+		   prefixed to every class file per the PRD structure.
+		2. WordPress.DB.SlowDBQuery: meta-based sorting/filtering of orders is
+		   a deliberate feature (COD Advance column + list filter).
+	-->
+	<rule ref="WordPress.Files.FileName.InvalidClassFileName">
+		<exclude name="WordPress.Files.FileName.InvalidClassFileName"/>
+	</rule>
+	<rule ref="WordPress.DB.SlowDBQuery">
+		<exclude name="WordPress.DB.SlowDBQuery"/>
+	</rule>
+	<rule ref="WordPress.WP.I18n">
+		<properties>
+			<property name="text_domain" value="cod-shield,woocommerce"/>
+		</properties>
+	</rule>
+
+	<!-- WooCommerce capabilities used by the plugin (WC registers them). -->
+	<rule ref="WordPress.WP.Capabilities">
+		<properties>
+			<property name="custom_capabilities" type="array">
+				<element value="edit_shop_orders"/>
+			</property>
+		</properties>
+	</rule>
+
+	<config name="minimum_supported_wp_version" value="6.4"/>
+</ruleset>

@@ -1,0 +1,74 @@
+/* COD Shield for WooCommerce — admin styles */
+
+.cod-shield-metabox ul {
+	margin: 0;
+	padding: 0;
+}
+
+.cod-shield-metabox li {
+	margin: 4px 0;
+	display: flex;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.cod-shield-metabox li .label {
+	color: #646970;
+}
+
+.cod-shield-metabox-note {
+	color: #646970;
+	font-style: italic;
+	border-top: 1px solid #e0e0e0;
+	padding-top: 8px;
+	margin-top: 10px;
+}
+
+.cod-shield-status {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 10px;
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1.6;
+}
+
+.cod-shield-status--paid {
+	background: #e6f6e6;
+	color: #1a7f37;
+}
+
+.cod-shield-status--pending {
+	background: #fff4e0;
+	color: #9a6700;
+}
+
+.cod-shield-status--failed {
+	background: #ffe0e0;
+	color: #b42318;
+}
+
+.cod-shield-na {
+	color: #a7aaad;
+}
+
+.cod-shield-manual-paid-form {
+	margin-top: 12px;
+	padding-top: 10px;
+	border-top: 1px solid #e0e0e0;
+}
+
+.cod-shield-manual-paid-form p {
+	margin: 0;
+}
+
+/* Checkout info box (classic) — lives in public/css/checkout.css, which is
+   enqueued on the storefront; admin.css is admin-only and never loads there. */
+/* Settings page: COD Shield section logo (General tab) */
+.cod-shield-settings-logo {
+	width: 64px;
+	height: 64px;
+	vertical-align: middle;
+	margin-right: 8px;
+	border-radius: 8px;
+}
