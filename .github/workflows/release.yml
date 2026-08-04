@@ -1,0 +1,42 @@
+name: Build & release plugin zip
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build plugin zip
+        run: |
+          mkdir -p dist
+          # git archive honours .gitattributes export-ignore, so tests/docs/
+          # composer.*/vendor etc. never enter the package.
+          git archive --format=zip --prefix=cod-shield/ -o dist/cod-shield.zip HEAD
+          # Strip the WP.org listing artwork and the asset generator from the
+          # package (same as the manual build).
+          zip -d dist/cod-shield.zip 'cod-shield/.wordpress-org/*' 'cod-shield/tools/*'
+
+      - name: Verify package
+        run: |
+          unzip -l dist/cod-shield.zip | grep -q 'cod-shield/cod-shield.php'
+          if unzip -l dist/cod-shield.zip | grep -q 'cod-shield/.wordpress-org/'; then
+            echo 'ERROR: listing artwork leaked into the package' >&2
+            exit 1
+          fi
+          echo "Package OK: $(unzip -l dist/cod-shield.zip | tail -1)"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/cod-shield.zip
+          generate_release_notes: true
