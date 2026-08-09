@@ -1,7 +1,7 @@
 <?php
 /**
  * Core bootstrap, option accessors and the single-source-of-truth advance
- * calculation engine for COD Shield for WooCommerce.
+ * calculation engine for SureOrder.
  *
  * @package COD_Shield
  */

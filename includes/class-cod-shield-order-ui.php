@@ -400,7 +400,7 @@ class Order_UI {
 
 		add_meta_box(
 			'cod_shield_advance_box',
-			__( 'COD Shield — Advance Payment', 'cod-shield' ),
+			__( 'SureOrder — Advance Payment', 'cod-shield' ),
 			array( $this, 'render_metabox' ),
 			$screen,
 			'side',

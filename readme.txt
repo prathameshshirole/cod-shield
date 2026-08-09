@@ -1,4 +1,4 @@
-=== COD Shield for WooCommerce ===
+=== SureOrder — COD Advance Payments for WooCommerce ===
 Contributors: prathaverse
 Tags: woocommerce, cod, cash on delivery, rto, advance payment
 Requires at least: 6.4
@@ -15,7 +15,7 @@ Reduce COD RTO by collecting a partial advance payment through one compatible Wo
 
 == Description ==
 
-Cash on Delivery is the dominant payment method in Indian e-commerce but carries high RTO (Return to Origin) risk from fake or unreliable orders. COD Shield for WooCommerce makes COD "cost something" upfront without forcing customers to pay in full.
+Cash on Delivery is the dominant payment method in Indian e-commerce but carries high RTO (Return to Origin) risk from fake or unreliable orders. SureOrder makes COD "cost something" upfront without forcing customers to pay in full.
 
 **Features**
 
@@ -44,11 +44,11 @@ When an advance is required, the COD option at checkout is replaced by a "Cash o
 
 **Minimal three-step setup**
 
-1. Go to **WooCommerce → Settings → COD Shield** and enable COD on the Setup tab. Keep WooCommerce's native COD gateway enabled too.
+1. Go to **WooCommerce → Settings → SureOrder** and enable COD on the Setup tab. Keep WooCommerce's native COD gateway enabled too.
 2. Choose **Fixed Amount** or **Percentage** and enter the amount.
 3. Choose one enabled, compatible gateway that has passed the release smoke test for your checkout.
 
-Minimum/maximum caps, COD order-value limits, excluded delivery pincodes, messaging, extra COD fees and order handling are advanced settings. If an advance is required but no usable collection gateway is configured, COD Shield hides COD instead of allowing an unprotected COD order. Other payment methods remain available.
+Minimum/maximum caps, COD order-value limits, excluded delivery pincodes, messaging, extra COD fees and order handling are advanced settings. If an advance is required but no usable collection gateway is configured, SureOrder hides COD instead of allowing an unprotected COD order. Other payment methods remain available.
 
 == Frequently Asked Questions ==
 
@@ -75,11 +75,12 @@ Yes. CartFlows checkout steps use the native WooCommerce cart, so the advance is
 == Changelog ==
 
 = 2.0.2 =
+* **Changed: renamed to SureOrder.** The new public brand avoids conflicts with other COD Shield products while all legacy technical identifiers remain stable for update, settings and order compatibility.
 * **Changed: relicensed under GNU GPL v2 or later.** Plugin metadata, package metadata, documentation, contribution terms, translation template and the bundled license text now consistently declare the WordPress-recommended GPL license.
-* **Fixed: Cashfree now appears in the advance gateway selector.** Cashfree's hosted redirect gateway marks itself as having checkout fields only to display its description; COD Shield now recognizes the official Cashfree gateway without weakening field-safety checks for other payment methods.
+* **Fixed: Cashfree now appears in the advance gateway selector.** Cashfree's hosted redirect gateway marks itself as having checkout fields only to display its description; SureOrder now recognizes the official Cashfree gateway without weakening field-safety checks for other payment methods.
 
 = 2.0.1 =
-* **Added: editable COD checkout title.** Set a custom customer-facing Cash on Delivery name under WooCommerce → Settings → COD Shield → General. The title is shared by native COD, the advance proxy, classic checkout, Checkout Blocks and finalized order records; leaving it blank preserves WooCommerce's existing COD title.
+* **Added: editable COD checkout title.** Set a custom customer-facing Cash on Delivery name under WooCommerce → Settings → SureOrder → General. The title is shared by native COD, the advance proxy, classic checkout, Checkout Blocks and finalized order records; leaving it blank preserves WooCommerce's existing COD title.
 * **Hardened manual advance reconciliation.** The admin action now uses POST with an order-scoped capability check and nonce verification.
 * **Expanded release safeguards.** Real WooCommerce lifecycle tests now cover legacy and HPOS storage, and releases cannot publish until quality checks pass.
 
@@ -160,7 +161,7 @@ Yes. CartFlows checkout steps use the native WooCommerce cart, so the advance is
 == Upgrade Notice ==
 
 = 2.0.2 =
-* Relicenses the plugin under GNU GPL v2 or later and restores the official Cashfree gateway in the advance gateway selector.
+* Renames the plugin to SureOrder, relicenses it under GNU GPL v2 or later and restores the official Cashfree gateway in the advance gateway selector.
 
 = 2.0.1 =
 * Adds an editable COD checkout title and strengthens payment reconciliation and release validation.

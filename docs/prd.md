@@ -1,6 +1,6 @@
 # PRD: WooCommerce COD Advance Payment Plugin
 
-**Plugin name:** COD Shield for WooCommerce (display name; slug/folder/text-domain remain `cod-shield`)
+**Plugin name:** SureOrder — COD Advance Payments for WooCommerce (display name; legacy slug/folder/text-domain remain `cod-shield` for compatibility)
 **Version:** 1.0
 **Author context:** Prathamesh Shirole — reduce RTO on COD orders by collecting a partial upfront payment through a compatible WooCommerce gateway.
 
@@ -82,9 +82,9 @@ Store admin running a WooCommerce store with COD as a primary payment method, wa
 
 ### 5.6 Settings Page
 
-Settings live under **WooCommerce → Settings → COD Shield**. The primary setup is limited to three decisions:
+Settings live under **WooCommerce → Settings → SureOrder**. The primary setup is limited to three decisions:
 
-1. **Enable** COD Shield's COD availability; WooCommerce's native COD gateway must remain enabled.
+1. **Enable** SureOrder's COD availability; WooCommerce's native COD gateway must remain enabled.
 2. Choose **Fixed Amount** or **Percentage** and enter the advance amount.
 3. Choose **one compatible gateway** that is enabled and tested for the active checkout.
 

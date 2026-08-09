@@ -1,5 +1,5 @@
 /**
- * COD Shield for WooCommerce — classic checkout live risk-free info box.
+ * SureOrder — classic checkout live risk-free info box.
  *
  * Display-only: re-fetches the cart state from the server whenever the cart
  * changes (updated_checkout) so the box always reflects the authoritative

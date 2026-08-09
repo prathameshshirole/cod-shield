@@ -1,6 +1,6 @@
 # Security Policy
 
-Thank you for helping keep COD Shield for WooCommerce and the stores that use it safe. This plugin handles **real payments** — we take security reports seriously and will respond promptly.
+Thank you for helping keep SureOrder and the stores that use it safe. This plugin handles **real payments** — we take security reports seriously and will respond promptly.
 
 ## Reporting a Vulnerability
 

@@ -1,8 +1,8 @@
-# COD Shield feature set
+# SureOrder feature set
 
 ## Minimal setup
 
-1. Enable COD Shield while keeping WooCommerce's native COD gateway enabled.
+1. Enable SureOrder while keeping WooCommerce's native COD gateway enabled.
 2. Choose a fixed advance amount or a percentage of the order total.
 3. Choose one enabled gateway that has passed the compatibility smoke test for the store's checkout.
 

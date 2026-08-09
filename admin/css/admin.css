@@ -1,4 +1,4 @@
-/* COD Shield for WooCommerce — admin styles */
+/* SureOrder — admin styles */
 
 .cod-shield-metabox ul {
 	margin: 0;
@@ -60,7 +60,7 @@
 
 /* Checkout info box (classic) — lives in public/css/checkout.css, which is
    enqueued on the storefront; admin.css is admin-only and never loads there. */
-/* Settings page: COD Shield section logo (General tab) */
+/* Settings page: SureOrder section logo (General tab) */
 .cod-shield-settings-logo {
 	width: 64px;
 	height: 64px;

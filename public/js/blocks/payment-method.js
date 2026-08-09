@@ -1,5 +1,5 @@
 /**
- * COD Shield for WooCommerce — Checkout block payment method.
+ * SureOrder — Checkout block payment method.
  *
  * Registers the proxy gateway with the block checkout so the advance
  * messaging renders natively under the payment method radio. Uses wp.element

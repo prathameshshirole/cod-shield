@@ -257,7 +257,7 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 		$order->save();
 
 		if ( 'block' === $core->get_option( Core::OPT_FAILURE, 'allow' ) ) {
-			$order->update_status( 'cancelled', __( 'Advance payment failed; order cancelled per COD Shield settings.', 'cod-shield' ) );
+			$order->update_status( 'cancelled', __( 'Advance payment failed; order cancelled per SureOrder settings.', 'cod-shield' ) );
 		}
 
 		return array( 'result' => 'failure' );

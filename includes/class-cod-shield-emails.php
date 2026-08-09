@@ -53,7 +53,7 @@ class Emails {
 			return;
 		}
 
-		// Normalized view covers both COD Shield orders and legacy RIRCOD orders.
+		// Normalized view covers both SureOrder orders and legacy RIRCOD orders.
 		$view = Order_Meta::from_order( $order );
 
 		// Only summarize once the advance is confirmed collected.

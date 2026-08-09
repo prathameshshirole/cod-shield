@@ -1,6 +1,6 @@
 <?php
 /**
- * Unit tests: COD Shield General settings tab banner.
+ * Unit tests: SureOrder General settings tab banner.
  *
  * Regression guard for the "raw HTML printed on the General settings tab"
  * bug: the section `title` of a WC settings page is rendered by WooCommerce

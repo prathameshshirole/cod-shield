@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
-<ruleset name="COD Shield for WooCommerce">
-	<description>PHP_CodeSniffer ruleset for COD Shield for WooCommerce.</description>
+<ruleset name="SureOrder">
+	<description>PHP_CodeSniffer ruleset for SureOrder.</description>
 
 	<file>.</file>
 

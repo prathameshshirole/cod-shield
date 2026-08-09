@@ -1,6 +1,6 @@
 <?php
 /**
- * Uninstall routine for COD Shield for WooCommerce.
+ * Uninstall routine for SureOrder.
  *
  * Removes only the options this plugin owns.
  *

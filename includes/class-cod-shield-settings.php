@@ -1,6 +1,6 @@
 <?php
 /**
- * Settings tab under WooCommerce > Settings > COD Shield.
+ * Settings tab under WooCommerce > Settings > SureOrder.
  *
  * Implemented as a WC_Settings_Page subclass (the official way to add a new
  * top-level tab). Saving is handled by WC_Admin_Settings::save_fields();
@@ -24,7 +24,7 @@ class Settings extends \WC_Settings_Page {
 	 */
 	public function __construct() {
 		$this->id    = 'cod_shield';
-		$this->label = __( 'COD Shield', 'cod-shield' );
+		$this->label = __( 'SureOrder', 'cod-shield' );
 
 		parent::__construct();
 
@@ -46,7 +46,7 @@ class Settings extends \WC_Settings_Page {
 		add_action( 'woocommerce_admin_field_cod_shield_configuration_status', array( $this, 'handle_configuration_status_field' ) );
 		add_action( 'admin_notices', array( $this, 'handle_admin_configuration_notices' ) );
 
-		// Load the admin stylesheet on the COD Shield settings tab AND on the
+		// Load the admin stylesheet on the SureOrder settings tab AND on the
 		// order screens: the stylesheet styles the COD Advance column badges
 		// and the advance metabox, which live on the orders list / order edit
 		// screen, not just on this settings tab.
@@ -150,7 +150,7 @@ class Settings extends \WC_Settings_Page {
 				// served from admin/img/, which ships with the plugin — never
 				// from .wordpress-org/, the WP.org listing-artwork folder that
 				// is not part of an installed plugin.
-				'title' => __( 'Set up COD Shield', 'cod-shield' ),
+				'title' => __( 'Set up SureOrder', 'cod-shield' ),
 				'type'  => 'title',
 				'desc'  => '<img src="' . esc_url( COD_SHIELD_URL . 'admin/img/icon-128x128.png' ) . '" alt="" class="cod-shield-settings-logo" /> ' . __( 'Collect a small online advance to confirm COD orders. Complete the three steps below; optional controls are in the other tabs.', 'cod-shield' ),
 				'id'    => 'cod_shield_general',
@@ -577,7 +577,7 @@ class Settings extends \WC_Settings_Page {
 					<strong class="cod-shield-configuration__summary"><?php echo esc_html( $summary ); ?></strong>
 					<ul>
 						<li class="cod-shield-check cod-shield-check--<?php echo $status['shield_enabled'] ? 'ready' : 'warning'; ?>">
-							<span><?php esc_html_e( 'COD Shield', 'cod-shield' ); ?></span>
+							<span><?php esc_html_e( 'SureOrder', 'cod-shield' ); ?></span>
 							<strong><?php echo esc_html( $status['shield_enabled'] ? __( 'Enabled', 'cod-shield' ) : __( 'Disabled', 'cod-shield' ) ); ?></strong>
 						</li>
 						<li class="cod-shield-check cod-shield-check--<?php echo $status['native_cod_enabled'] ? 'ready' : 'warning'; ?>">
@@ -596,7 +596,7 @@ class Settings extends \WC_Settings_Page {
 	}
 
 	/**
-	 * Show configuration warnings on the COD Shield settings screen.
+	 * Show configuration warnings on the SureOrder settings screen.
 	 *
 	 * @internal
 	 *
@@ -612,7 +612,7 @@ class Settings extends \WC_Settings_Page {
 		if ( $status['shield_enabled'] && ! $status['native_cod_enabled'] ) {
 			$cod_settings_url = admin_url( 'admin.php?page=wc-settings&tab=checkout&section=cod' );
 			echo '<div class="notice notice-warning"><p>';
-			echo '<strong>' . esc_html__( 'COD Shield needs attention:', 'cod-shield' ) . '</strong> ';
+			echo '<strong>' . esc_html__( 'SureOrder needs attention:', 'cod-shield' ) . '</strong> ';
 			echo esc_html__( 'WooCommerce Cash on Delivery is disabled, so COD cannot appear at checkout.', 'cod-shield' ) . ' ';
 			echo '<a href="' . esc_url( $cod_settings_url ) . '">' . esc_html__( 'Enable the COD gateway', 'cod-shield' ) . '</a>';
 			echo '</p></div>';
@@ -791,7 +791,7 @@ class Settings extends \WC_Settings_Page {
 	}
 
 	/**
-	 * Whether the current admin screen is the COD Shield settings tab.
+	 * Whether the current admin screen is the SureOrder settings tab.
 	 *
 	 * @return bool
 	 */

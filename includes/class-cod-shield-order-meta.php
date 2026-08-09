@@ -128,7 +128,7 @@ class Order_Meta {
 
 	/**
 	 * Pure factory from a flat meta map ([key => value]). Unit-testable without
-	 * WordPress. COD Shield meta takes precedence over the RIRCOD schema.
+	 * WordPress. SureOrder meta takes precedence over the RIRCOD schema.
 	 *
 	 * @param array<string,mixed> $m Meta map.
 	 * @return self
@@ -136,7 +136,7 @@ class Order_Meta {
 	public static function from_meta_array( array $m ) {
 		$view = new self();
 
-		// 1. Native COD Shield meta wins when present.
+		// 1. Native SureOrder meta wins when present.
 		$advance = (float) ( $m[ Core::META_ADVANCE ] ?? 0 );
 		if ( $advance > 0 ) {
 			$view->source    = self::SOURCE_COD_SHIELD;
@@ -192,7 +192,7 @@ class Order_Meta {
 	public function source_label() {
 		switch ( $this->source ) {
 			case self::SOURCE_COD_SHIELD:
-				return __( 'COD Shield', 'cod-shield' );
+				return __( 'SureOrder', 'cod-shield' );
 			case self::SOURCE_RIRCOD:
 				return __( 'RIRCOD', 'cod-shield' );
 			default:

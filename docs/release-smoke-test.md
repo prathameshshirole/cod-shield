@@ -4,7 +4,7 @@ Run this checklist on a staging store before tagging a release. Use sandbox/test
 
 ## Compatibility contract
 
-A gateway is compatible only for the exact plugin version, WooCommerce version, storage mode and checkout type that passed this checklist. An enabled gateway appearing in COD Shield's selector is not evidence of compatibility.
+A gateway is compatible only for the exact plugin version, WooCommerce version, storage mode and checkout type that passed this checklist. An enabled gateway appearing in SureOrder's selector is not evidence of compatibility.
 
 Use these result values in the matrix: `Not run`, `Pass`, `Fail` or `Blocked`. Add one row for every tested combination; do not publish a compatibility claim for a `Not run`, `Fail` or `Blocked` row.
 
@@ -22,7 +22,7 @@ Use these result values in the matrix: `Not run`, `Pass`, `Fail` or `Blocked`. A
 
 ## Minimal setup and fail-closed checks
 
-1. Enable COD Shield while keeping WooCommerce's native COD gateway enabled.
+1. Enable SureOrder while keeping WooCommerce's native COD gateway enabled.
 2. Choose **Fixed Amount** or **Percentage**, enter the amount and choose exactly one candidate gateway.
 3. Place a test order to prove that the chosen gateway requests only the advance.
 4. Disable or make the selected gateway unavailable while the advance still applies. Confirm native COD is hidden, the advance cannot be bypassed and unrelated payment methods remain available.

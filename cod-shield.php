@@ -1,6 +1,6 @@
 <?php
 /**
- * Plugin Name:       COD Shield for WooCommerce
+ * Plugin Name:       SureOrder — COD Advance Payments for WooCommerce
  * Plugin URI:        https://wordpress.org/plugins/cod-shield/
  * Description:       Reduce COD RTO by collecting a partial advance payment through one compatible WooCommerce gateway, with simple setup, optional eligibility rules, and clear order visibility.
  * Version:           2.0.2
@@ -22,18 +22,18 @@
 /*
 Copyright (C) 2026 Prathamesh Shirole
 
-COD Shield for WooCommerce is free software: you can redistribute it and/or modify
+SureOrder is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 2 of the License, or
 any later version.
 
-COD Shield for WooCommerce is distributed in the hope that it will be useful,
+SureOrder is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with COD Shield for WooCommerce. If not, see https://www.gnu.org/licenses/.
+along with SureOrder. If not, see https://www.gnu.org/licenses/.
 */
 
 defined( 'ABSPATH' ) || exit;
@@ -105,7 +105,7 @@ add_action(
 				'admin_notices',
 				static function () {
 					echo '<div class="notice notice-error"><p>';
-					echo esc_html__( 'COD Shield for WooCommerce requires WooCommerce to be installed and active.', 'cod-shield' );
+					echo esc_html__( 'SureOrder requires WooCommerce to be installed and active.', 'cod-shield' );
 					echo '</p></div>';
 				}
 			);

@@ -20,7 +20,7 @@ if ( ! file_exists( $cod_shield_tests_dir . '/includes/functions.php' ) ) {
 require_once $cod_shield_tests_dir . '/includes/functions.php';
 
 /**
- * Load WooCommerce and COD Shield before WordPress initializes plugins.
+ * Load WooCommerce and SureOrder before WordPress initializes plugins.
  *
  * @return void
  */

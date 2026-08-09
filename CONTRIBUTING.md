@@ -1,4 +1,4 @@
-# Contributing to COD Shield for WooCommerce
+# Contributing to SureOrder
 
 First off, thanks for taking the time to contribute! ❤️
 
@@ -79,7 +79,7 @@ Once it's filed, a maintainer will try to reproduce the issue with your steps. I
 
 ### Suggesting Enhancements
 
-This section guides you through submitting an enhancement suggestion for COD Shield for WooCommerce, **including completely new features and minor improvements to existing functionality**.
+This section guides you through submitting an enhancement suggestion for SureOrder, **including completely new features and minor improvements to existing functionality**.
 
 #### Before Submitting an Enhancement
 

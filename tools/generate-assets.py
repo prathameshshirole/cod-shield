@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-COD Shield for WooCommerce — asset generator.
+SureOrder — asset generator.
 
 Regenerates every logo asset from a single master logo (assets/logo.png).
 Usage:  python3 tools/generate-assets.py

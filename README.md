@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/social-preview.png" alt="COD Shield for WooCommerce — Reduce COD RTO with partial advance payments" width="100%" />
+  <img src="assets/social-preview.png" alt="SureOrder — Confirm COD orders with partial advance payments" width="100%" />
 </p>
 
-# 🛡️ COD Shield for WooCommerce
+# 🛡️ SureOrder
 
 > Reduce **COD RTO** (Return to Origin) by collecting a **partial advance payment** through one compatible WooCommerce payment gateway — without forcing customers to pay in full.
 
@@ -17,7 +17,7 @@
 
 ## Table of Contents
 
-- [Why COD Shield?](#why-cod-shield)
+- [Why SureOrder?](#why-sureorder)
 - [Features](#features)
 - [How It Works](#how-it-works)
 - [Requirements](#requirements)
@@ -32,11 +32,11 @@
 
 ---
 
-## Why COD Shield?
+## Why SureOrder?
 
 Cash on Delivery is the dominant payment method in Indian e-commerce — but it carries high **RTO risk** from fake and unreliable orders. Every failed delivery costs you shipping, reverse-logistics and product handling fees.
 
-COD Shield makes COD "cost something" upfront **without** forcing customers to pay the full amount online. By collecting a small, configurable advance through a compatible gateway you already use, you:
+SureOrder makes COD "cost something" upfront **without** forcing customers to pay the full amount online. By collecting a small, configurable advance through a compatible gateway you already use, you:
 
 - ✅ **Filter out casual and fake orders** before they ship
 - ✅ **Keep COD conversion high** — customers pay a fraction, not the full price
@@ -146,7 +146,7 @@ Remaining balance due on delivery
 | PHP | 8.1+ |
 | WooCommerce | 8.0+ (HPOS supported and recommended) |
 
-WooCommerce's **native COD gateway must remain enabled** — COD Shield extends it, it does not replace it.
+WooCommerce's **native COD gateway must remain enabled** — SureOrder extends it, it does not replace it.
 
 ---
 
@@ -155,21 +155,21 @@ WooCommerce's **native COD gateway must remain enabled** — COD Shield extends 
 ### From the WordPress Plugin Directory (recommended)
 
 1. Go to **Plugins → Add New** in your WordPress admin
-2. Search for **"COD Shield for WooCommerce"**
+2. Search for **"SureOrder"**
 3. Install and activate
-4. Go to **WooCommerce → Settings → COD Shield** to configure
+4. Go to **WooCommerce → Settings → SureOrder** to configure
 
 ### Manual installation
 
 1. Upload the `cod-shield` folder to `/wp-content/plugins/`
 2. Activate the plugin through the **Plugins** screen
-3. Go to **WooCommerce → Settings → COD Shield** and configure
+3. Go to **WooCommerce → Settings → SureOrder** and configure
 
 ---
 
 ## Configuration
 
-All settings live under **WooCommerce → Settings → COD Shield**.
+All settings live under **WooCommerce → Settings → SureOrder**.
 
 ### Minimal three-step setup
 
@@ -177,7 +177,7 @@ All settings live under **WooCommerce → Settings → COD Shield**.
 2. **Choose Fixed Amount or Percentage** and enter the amount.
 3. **Choose one compatible gateway** that is enabled in WooCommerce and has passed the release smoke test for your checkout.
 
-If an advance is required but no usable collection gateway is configured, COD Shield fails closed: it hides native COD instead of allowing the customer to place an unprotected COD order. Other payment methods remain available.
+If an advance is required but no usable collection gateway is configured, SureOrder fails closed: it hides native COD instead of allowing the customer to place an unprotected COD order. Other payment methods remain available.
 
 ### Advanced settings
 
