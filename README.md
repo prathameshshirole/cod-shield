@@ -4,9 +4,9 @@
 
 # 🛡️ COD Shield for WooCommerce
 
-> Reduce **COD RTO** (Return to Origin) by collecting a **partial advance payment** through your existing payment gateways — Razorpay, Cashfree, Stripe and more — without forcing customers to pay in full.
+> Reduce **COD RTO** (Return to Origin) by collecting a **partial advance payment** through one compatible WooCommerce payment gateway — without forcing customers to pay in full.
 
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://wordpress.org/plugins/cod-shield/)
+[![Version](https://img.shields.io/badge/version-2.0.1-blue.svg)](https://wordpress.org/plugins/cod-shield/)
 [![WordPress](https://img.shields.io/badge/WordPress-6.4%2B-21759b.svg)](https://wordpress.org/plugins/cod-shield/)
 [![WooCommerce](https://img.shields.io/badge/WooCommerce-8.0%2B-96588a.svg)](https://woocommerce.com/)
 [![PHP](https://img.shields.io/badge/PHP-8.1%2B-777bb4.svg)](https://www.php.net/)
@@ -36,11 +36,12 @@
 
 Cash on Delivery is the dominant payment method in Indian e-commerce — but it carries high **RTO risk** from fake and unreliable orders. Every failed delivery costs you shipping, reverse-logistics and product handling fees.
 
-COD Shield makes COD "cost something" upfront **without** forcing customers to pay the full amount online. By collecting a small, configurable advance through gateways you already use, you:
+COD Shield makes COD "cost something" upfront **without** forcing customers to pay the full amount online. By collecting a small, configurable advance through a compatible gateway you already use, you:
 
 - ✅ **Filter out casual and fake orders** before they ship
 - ✅ **Keep COD conversion high** — customers pay a fraction, not the full price
-- ✅ **Stay gateway-agnostic** — works with Razorpay, Cashfree, Stripe, and any gateway that respects the order total set by WooCommerce
+- ✅ **Match your storefront language** — customize the COD checkout title
+- ✅ **Use a tested gateway** — choose one enabled gateway that passes the compatibility smoke test for your checkout
 - ✅ **Ship with confidence** — the remaining balance is still collected on delivery
 
 ---
@@ -50,8 +51,8 @@ COD Shield makes COD "cost something" upfront **without** forcing customers to p
 ### 💰 Partial Advance Payment
 
 - Flat ₹ amount **or** percentage of order total
-- Optional **min/max caps** and an **order-value threshold**
-- Collected through any of your **already-enabled gateways** (no new payment integration required)
+- Optional **min/max caps** and a **Minimum order value for COD**
+- Collected through one compatible, already-enabled gateway (no new payment integration is bundled)
 - Order is finalized as a standard COD order — remaining balance due on delivery
 
 ### 🚨 Global COD Kill Switch
@@ -60,10 +61,17 @@ COD Shield makes COD "cost something" upfront **without** forcing customers to p
 - Independent of plugin activation and WooCommerce's native COD settings
 - No cache flushing, no hunting through gateway settings
 
+### ✏️ Editable COD Title
+
+- Customize the customer-facing COD payment name
+- Applied consistently to classic checkout, Checkout Blocks and advance orders
+- Leave blank to preserve WooCommerce's existing COD title
+
 ### 📉 Minimum Order Value for COD
 
-- Optional order-value threshold — orders **below** it cannot choose COD at all
+- Optional **Minimum order value for COD** — orders **below** it cannot choose COD at all
 - **Off by default**, so activation never changes your existing checkout behaviour
+- Optional **maximum order value for COD** and delivery-pincode exclusions for higher-risk orders
 
 ### 💬 Transparent Checkout Messaging
 
@@ -75,6 +83,7 @@ COD Shield makes COD "cost something" upfront **without** forcing customers to p
 
 - Charge an additional fee on COD orders (flat ₹ or %)
 - On/off toggle with **tax rate and tax-class support**
+- Advanced feature: classic checkout can show the fee before placement; Checkout Blocks currently applies it during order processing and does not preview a separate fee line before placement
 
 ### 👀 Full Admin Visibility
 
@@ -88,22 +97,29 @@ COD Shield makes COD "cost something" upfront **without** forcing customers to p
 - **HPOS** (High-Performance Order Storage) — declared and supported
 - **Cart/Checkout Blocks** and classic shortcode checkout
 - **CartFlows** checkout funnels
-- Gateway-agnostic — no hard dependency on any gateway plugin
+- No hard dependency on a specific gateway plugin; compatibility must be verified for the selected gateway and checkout type
 
 ---
 
 ## How It Works
 
 ```
-Customer selects COD at checkout
+COD enabled and order meets the configured minimum?
             │
-            ▼
-Advance required? ──── No ───► Normal COD order (risk-free messaging shown)
-            │
-           Yes
-            │
-            ▼
-COD replaced by "Cash on delivery (advance)" method
+       No ──┴── Yes
+       │         │
+       ▼         ▼
+ COD hidden   Advance required? ──── No ───► Normal COD order
+                 │
+                Yes
+                 │
+                 ▼
+      Compatible gateway available? ─ No ──► COD hidden (fail closed)
+                 │
+                Yes
+                 │
+                 ▼
+ Customer selects "Cash on delivery (advance)"
             │
             ▼
 Order placed → redirected to your gateway → charged ONLY the advance
@@ -118,7 +134,7 @@ Advance + transaction ID recorded
 Remaining balance due on delivery
 ```
 
-> ⚠️ **Important:** the gateway selected for advance collection must honour the order total set by WooCommerce and must not recalculate order totals inside its own `process_payment()`. All major gateways (Razorpay, Cashfree, Stripe) do this correctly.
+> ⚠️ **Important:** gateway compatibility is not automatic. The selected gateway must honour the temporary WooCommerce order total, accept the delegated payment flow, and charge only the advance. Test its current plugin version in both checkout types you use before enabling COD advance on a live store.
 
 ---
 
@@ -153,17 +169,29 @@ WooCommerce's **native COD gateway must remain enabled** — COD Shield extends 
 
 ## Configuration
 
-All settings live under **WooCommerce → Settings → COD Shield**:
+All settings live under **WooCommerce → Settings → COD Shield**.
+
+### Minimal three-step setup
+
+1. **Enable COD** on the Setup tab. WooCommerce's native COD gateway must also remain enabled.
+2. **Choose Fixed Amount or Percentage** and enter the amount.
+3. **Choose one compatible gateway** that is enabled in WooCommerce and has passed the release smoke test for your checkout.
+
+If an advance is required but no usable collection gateway is configured, COD Shield fails closed: it hides native COD instead of allowing the customer to place an unprotected COD order. Other payment methods remain available.
+
+### Advanced settings
+
+The remaining controls are optional:
 
 | Section | What it controls |
 | --------- | ------------------ |
-| **General** | Global COD enable/disable (the kill switch) |
-| **Advance Payment** | Mode (disabled / fixed / percentage), amount, min/max caps, order-value threshold (also the COD minimum), allowed gateways |
-| **Extra COD Fee** | Fee toggle, type, amount/percentage, tax toggle + tax class |
-| **Messaging** | Advance + risk-free message text and toggles (placeholders supported) |
+| **Setup** | COD switch, advance mode/amount and one compatible gateway |
+| **Advanced Rules** | Advance caps, COD order-value limits and excluded delivery pincodes |
+| **COD Fee** | Fee toggle, type, amount/percentage, tax toggle + tax class |
+| **Messages** | COD title, advance/risk-free text and email summary |
 | **Order Handling** | Behaviour on advance failure (keep pending / cancel) and post-payment status |
 
-**Tip:** at least one of your enabled gateways must be selected to collect advances — otherwise the advance flow won't be offered.
+The extra COD fee is optional. In Checkout Blocks it is currently applied during order processing and is not previewed as a separate fee line before the order is placed.
 
 ---
 
@@ -189,7 +217,7 @@ No. It extends it. The order is finalized as a standard COD order; WooCommerce's
 <details>
 <summary><strong>Which gateways can collect the advance?</strong></summary>
 
-Any of your currently enabled WooCommerce gateways (Razorpay, Cashfree, Stripe, etc.). Select them in the COD Shield settings. At least one must be enabled for the advance flow to work.
+Choose one enabled WooCommerce gateway that has passed the compatibility smoke test with its current version and your checkout type. A gateway is not considered compatible merely because it appears in the selector. If the selected gateway is unavailable while an advance is required, COD is hidden rather than offered without the advance.
 </details>
 
 <details>
@@ -213,7 +241,7 @@ Yes. CartFlows checkout steps use the native WooCommerce cart, so the advance is
 <details>
 <summary><strong>Will activating the plugin change my existing checkout?</strong></summary>
 
-No. The order-value threshold and advance rules are **off by default** — activation only adds the kill switch capability and the settings pages. Nothing about your checkout changes until you configure it.
+No. **Minimum order value for COD** and advance rules are **off by default** — activation only adds the kill switch capability and the settings pages. Nothing about your checkout changes until you configure it.
 </details>
 
 ---
@@ -304,6 +332,7 @@ Bug reports and feature requests: use the [issue templates](.github/ISSUE_TEMPLA
 
 See [readme.txt](readme.txt) for the full changelog. Notable recent releases:
 
+- **2.0.1** — Editable COD title, hardened manual reconciliation, and release quality gates
 - **2.0.0** — Fresh start: MIT license, brand-new undistorted logo asset set with reusable generator, community setup (CONTRIBUTING/CODE_OF_CONDUCT/SECURITY)
 - **1.1.2** — Fixed block checkout blocking all low-value orders when a threshold is set; added lifecycle test coverage
 - **1.1.0** — Threshold now off by default; new installs default to Processing after advance; overcharge guard on manual reconciliation

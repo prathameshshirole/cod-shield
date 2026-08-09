@@ -7,11 +7,11 @@ Requires PHP: 8.1
 Requires Plugins: woocommerce
 WC requires at least: 8.0
 WC tested up to: 10.9
-Stable tag: 2.0.0
+Stable tag: 2.0.1
 License: MIT
 License URI: https://opensource.org/licenses/MIT
 
-Reduce COD RTO by collecting a partial advance payment via existing payment gateways, with a global COD kill switch and clear checkout messaging.
+Reduce COD RTO by collecting a partial advance payment through one compatible WooCommerce gateway, with a global COD kill switch and clear checkout messaging.
 
 == Description ==
 
@@ -20,26 +20,35 @@ Cash on Delivery is the dominant payment method in Indian e-commerce but carries
 **Features**
 
 * **Global COD kill switch** — one click to instantly hide COD from checkout, independent of plugin activation and WooCommerce's native COD settings.
-* **Advance payment collection** — fixed ₹ amount or % of order total, with optional minimum/maximum caps and an order-value threshold. Collected through your existing enabled gateways (Razorpay, Cashfree, etc.).
-* **Minimum order value for COD** — optional order-value threshold; orders below it cannot choose Cash on Delivery at all (off by default, so activation never changes existing checkout behaviour).
+* **Editable COD title** — customize the customer-facing Cash on Delivery name consistently across classic checkout, Checkout Blocks and advance orders.
+* **Advance payment collection** — fixed ₹ amount or % of order total, collected through one compatible, enabled WooCommerce gateway.
+* **Minimum order value for COD** — optional advanced rule; orders below it cannot choose Cash on Delivery at all (off by default, so activation never changes existing checkout behaviour).
+* **India-focused eligibility rules** — optionally hide COD above a maximum order value or for exact/prefix delivery pincodes such as `110001` or `400*`.
 * **Transparent checkout messaging** — admin-editable messages explaining the advance (or that COD is risk-free), with {advance_amount}, {remaining_amount} and {percentage} placeholders.
 * **Full admin visibility** — sortable "COD Advance" column on the orders list, a filter (COD with advance / paid / pending / no advance), and an advance details metabox on the order edit screen.
 * **Audit trail** — automatic order notes on advance payment initiation, success and failure.
-* **Gateway-agnostic** — no hard dependency on any gateway plugin; pick which of your enabled gateways may collect the advance.
-* **Extra COD fee** — charge an additional fee on COD orders (flat ₹ or %), with an on/off toggle and optional tax rates / tax class.
-* **HPOS + Blocks compatible** — works with High-Performance Order Storage and both the classic shortcode and Cart/Checkout block.
+* **Tested gateway compatibility** — no hard dependency on a specific gateway plugin; verify the selected gateway version with your checkout before going live.
+* **Extra COD fee** — optional advanced fee (flat ₹ or %), with tax support. Checkout Blocks currently applies it during order processing and does not preview a separate fee line before placement.
+* **HPOS + Blocks compatible** — the core advance flow works with High-Performance Order Storage and both the classic shortcode and Cart/Checkout block.
 
 **How it works**
 
-When an advance is required, the COD option at checkout is replaced by a "Cash on delivery (advance)" method. On placing the order the customer is redirected through your selected gateway and charged *only* the advance amount; the order is then finalized as a normal COD order with the remaining balance due on delivery.
+When an advance is required, the COD option at checkout is replaced by a "Cash on delivery (advance)" method. On placing the order the customer enters the selected gateway's normal payment flow and is charged *only* the advance amount; the order is then finalized as a normal COD order with the remaining balance due on delivery.
 
-**Important:** the gateway selected for advance collection must honour the order total set by WooCommerce and must not recalculate order totals inside its own `process_payment()` (all major gateways such as Razorpay, Cashfree and Stripe do this correctly).
+**Important:** gateway compatibility is not automatic. The selected gateway must honour the temporary WooCommerce order total, accept the delegated payment flow and charge only the advance. Test its current plugin version in each checkout type you use before enabling COD advance on a live store.
 
 == Installation ==
 
 1. Upload the `cod-shield` folder to `/wp-content/plugins/`, or install via Plugins → Add New → Upload.
 2. Activate the plugin through the Plugins screen.
-3. Go to **WooCommerce → Settings → COD Shield** and configure the advance mode, amount/percentage, min/max, threshold and allowed gateways.
+
+**Minimal three-step setup**
+
+1. Go to **WooCommerce → Settings → COD Shield** and enable COD on the Setup tab. Keep WooCommerce's native COD gateway enabled too.
+2. Choose **Fixed Amount** or **Percentage** and enter the amount.
+3. Choose one enabled, compatible gateway that has passed the release smoke test for your checkout.
+
+Minimum/maximum caps, COD order-value limits, excluded delivery pincodes, messaging, extra COD fees and order handling are advanced settings. If an advance is required but no usable collection gateway is configured, COD Shield hides COD instead of allowing an unprotected COD order. Other payment methods remain available.
 
 == Frequently Asked Questions ==
 
@@ -49,7 +58,7 @@ No. It extends it. The order is finalized as a standard COD order; WooCommerce's
 
 = Which gateways can collect the advance? =
 
-Any of your currently enabled WooCommerce gateways (Razorpay, Cashfree, Stripe, etc.). Select them in the COD Shield settings. At least one must be enabled for the advance flow to work.
+Choose one enabled WooCommerce gateway that has passed the compatibility smoke test with its current version and your checkout type. Appearing in the selector does not by itself prove compatibility. If that gateway is unavailable while an advance is required, COD is hidden rather than offered without the advance.
 
 = What happens if the advance payment fails? =
 
@@ -64,6 +73,11 @@ Yes. The amount is always calculated and re-validated server-side at order creat
 Yes. CartFlows checkout steps use the native WooCommerce cart, so the advance is calculated from the same total CartFlows shows in the order review. On a CartFlows step the "Place order" button shows the advance (what is charged right now) instead of the full order total, even though CartFlows appends the full total to the button label when its "show price on button" setting is enabled.
 
 == Changelog ==
+
+= 2.0.1 =
+* **Added: editable COD checkout title.** Set a custom customer-facing Cash on Delivery name under WooCommerce → Settings → COD Shield → General. The title is shared by native COD, the advance proxy, classic checkout, Checkout Blocks and finalized order records; leaving it blank preserves WooCommerce's existing COD title.
+* **Hardened manual advance reconciliation.** The admin action now uses POST with an order-scoped capability check and nonce verification.
+* **Expanded release safeguards.** Real WooCommerce lifecycle tests now cover legacy and HPOS storage, and releases cannot publish until quality checks pass.
 
 = 2.0.0 =
 * **Added: highlighted advance notice at checkout.** The advance line under the COD payment method ("An advance of ₹99 secures this order…") now renders bold inside a warm amber callout on both the classic and the block checkout, so the amount due right now is scanned in a glance. This also fixes the risk-free info box, whose styles previously lived in admin-only CSS and never loaded on the storefront.
@@ -140,6 +154,9 @@ Yes. CartFlows checkout steps use the native WooCommerce cart, so the advance is
 * Initial release.
 
 == Upgrade Notice ==
+
+= 2.0.1 =
+* Adds an editable COD checkout title and strengthens payment reconciliation and release validation.
 
 = 2.0.0 =
 * Fresh start: now MIT licensed with a new logo/banner set and open-source community files. The slug, folder and text-domain are now `cod-shield` (was `wc-cod-shield`) for WordPress.org naming compliance. No functional or settings changes — safe to update.

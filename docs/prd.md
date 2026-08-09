@@ -2,7 +2,7 @@
 
 **Plugin name:** COD Shield for WooCommerce (display name; slug/folder/text-domain remain `cod-shield`)
 **Version:** 1.0
-**Author context:** Prathamesh Shirole — reduce RTO on COD orders by collecting a partial upfront payment via existing WooCommerce gateways.
+**Author context:** Prathamesh Shirole — reduce RTO on COD orders by collecting a partial upfront payment through a compatible WooCommerce gateway.
 
 ---
 
@@ -12,7 +12,7 @@ Cash on Delivery is the dominant payment method in Indian e-commerce but carries
 
 ## 2. Goals
 
-- Let the store collect a **partial advance payment** (fixed ₹ amount or % of order total) on COD orders, paid via any existing enabled online gateway (Razorpay, Cashfree, etc.).
+- Let the store collect a **partial advance payment** (fixed ₹ amount or % of order total) on COD orders through one enabled gateway that has been compatibility-tested with the store's checkout.
 - Let the admin **toggle COD availability** at checkout instantly, without deactivating the plugin or touching WooCommerce's native COD gateway settings.
 - Show clear, **admin-configurable messaging** at checkout explaining the advance fee (or that COD is risk-free, if no fee is set) to build trust and reduce checkout drop-off/confusion.
 - Make COD-with-advance orders **fully visible and manageable** in the standard WooCommerce admin order screens (list + detail), including how much was paid upfront vs. due on delivery.
@@ -22,7 +22,8 @@ Cash on Delivery is the dominant payment method in Indian e-commerce but carries
 
 - Not a replacement for WooCommerce's core COD gateway — this plugin extends/wraps it.
 - Not a full RTO analytics/reporting suite (may be a v2 consideration).
-- Not building a new payment gateway — advance payment is collected by delegating to an existing, already-configured WooCommerce gateway.
+- Not building a new payment gateway — advance payment is delegated to one existing, already-configured WooCommerce gateway.
+- Not promising universal compatibility with enabled gateways. Compatibility depends on the gateway plugin version and checkout type and must be tested.
 - No multi-currency / international logic beyond what WooCommerce already provides.
 
 ## 4. Target User
@@ -46,12 +47,13 @@ Store admin running a WooCommerce store with COD as a primary payment method, wa
 - **Percentage**: a % of cart/order total (e.g. 10%), with:
   - Optional **minimum advance amount** (floor, e.g. never less than ₹49).
   - Optional **maximum advance amount** (cap, e.g. never more than ₹999).
-- Optional **order value threshold** (off by default): acts as the COD minimum — orders below it cannot choose COD at all; at/above it, advance collection applies.
+- Optional **Minimum order value for COD** (off by default): orders below it cannot choose COD at all; at/above it, advance collection applies.
 - Advance amount is calculated server-side at checkout (never trust client-side JS) and re-validated on order creation.
 
-### 5.3 Gateway Delegation for Advance Collection
+### 5.3 Compatible Gateway Delegation for Advance Collection
 
-- Admin selects **which existing enabled gateway(s)** may be used to collect the advance (e.g. Razorpay only, or Razorpay + Cashfree).
+- Admin selects **one existing enabled gateway** to collect the advance.
+- Appearing in the selector is not proof of compatibility. The selected gateway version must pass the compatibility matrix in `release-smoke-test.md` for every checkout type the store uses.
 - Checkout flow when COD + advance is active:
   1. Customer selects COD at checkout.
   2. If advance mode is active, checkout UI reveals: *"₹99 advance payment required to confirm this order via [gateway]. ₹[remaining] payable on delivery."*
@@ -59,11 +61,12 @@ Store admin running a WooCommerce store with COD as a primary payment method, wa
   4. On successful gateway payment, the order is created/marked as COD with advance-paid metadata attached.
   5. On failed/abandoned gateway payment, order is not placed (or placed as `pending advance payment`, configurable) — customer can retry.
 - Technically: this is implemented as a thin WooCommerce order-level split — the underlying gateway still runs its normal payment intent/transaction for the advance sub-amount, then WooCommerce order is finalized as `cod` payment method with custom meta.
+- Fail-closed requirement: when an advance applies and the selected gateway is disabled, missing or otherwise unusable, hide native COD instead of allowing checkout without the required advance. Non-COD payment methods remain unaffected.
 
 ### 5.4 Checkout Messaging (COD Messaging)
 
 - The **advance notice** renders **under the COD payment method radio, inside the payment box** (payment method description): e.g. *"Pay ₹99 now, ₹943 on delivery (COD)."* It is deliberately **not** repeated in a box above the payment section.
-- The **risk-free message** (advance disabled or order below threshold) renders in a small info box directly **above the payment methods section**: e.g. *"Cash on Delivery available — no advance payment required."*
+- The **risk-free message** (advance disabled while COD remains eligible) renders in a small info box directly **above the payment methods section**: e.g. *"Cash on Delivery available — no advance payment required."* Orders below **Minimum order value for COD** do not see this message because COD is unavailable.
 - Both messages are **admin-editable text** (with `{advance_amount}`, `{remaining_amount}`, `{percentage}` placeholders) and each has its **own on/off toggle** — admin can disable either message independently without disabling the underlying logic.
 - Messaging is written for Indian ecommerce shoppers: the COD label reads "Cash on delivery (COD)" and the advance notice states simply *"Pay X now, Y on delivery (COD)."*
 - Messaging renders via the payment method description hook / a lightweight checkout script — no page builder dependency.
@@ -79,12 +82,21 @@ Store admin running a WooCommerce store with COD as a primary payment method, wa
 
 ### 5.6 Settings Page
 
-Single settings screen under **WooCommerce → Settings → COD Shield** (or a tab under Payments), organized into:
+Settings live under **WooCommerce → Settings → COD Shield**. The primary setup is limited to three decisions:
 
-1. **General** — global COD enable/disable switch.
-2. **Advance Payment** — mode, amount/percentage, min/max, order value threshold, allowed gateways.
-3. **Messaging** — editable text + toggle for both message types.
-4. **Order Handling** — behavior on advance payment failure (block order / allow as pending).
+1. **Enable** COD Shield's COD availability; WooCommerce's native COD gateway must remain enabled.
+2. Choose **Fixed Amount** or **Percentage** and enter the advance amount.
+3. Choose **one compatible gateway** that is enabled and tested for the active checkout.
+
+Clearly label these optional controls as **Advanced settings**:
+
+- Minimum/maximum advance caps and **Minimum order value for COD**.
+- Optional maximum COD order value and exact/prefix delivery-pincode exclusions.
+- Custom COD title and message text/toggles.
+- Extra COD fee and tax controls.
+- Advance-failure behaviour and post-payment order status.
+
+The settings page must warn that an unusable gateway configuration hides COD whenever an advance is required.
 
 ---
 
@@ -94,7 +106,7 @@ Single settings screen under **WooCommerce → Settings → COD Shield** (or a t
 Checkout → select COD → risk-free message shows above the payment box → place order → standard WooCommerce COD order created.
 
 **Flow B — COD with advance required:**
-Checkout → select COD → advance notice shows under the COD option ("Pay ₹99 now, ₹943 on delivery (COD)") → place order → redirected to selected gateway for advance amount only → payment success → order created as COD with advance-paid meta, order note logged → thank-you page confirms both amounts.
+Checkout → select COD → advance notice shows under the COD option ("Pay ₹99 now, ₹943 on delivery (COD)") → place order → redirected to the selected compatible gateway for advance amount only → payment success → order created as COD with advance-paid meta, order note logged → thank-you page confirms both amounts.
 
 **Flow C — Advance payment fails:**
 Gateway declines/customer abandons → order not placed (default) OR order placed with status `on-hold`/custom `advance-pending` status (configurable) → admin sees it flagged in order list → customer can retry from "Pay" link if `on-hold`.
@@ -170,7 +182,9 @@ This single function is called both to render the checkout preview (via AJAX/JS 
 
 - WooCommerce HPOS (order tables) — required, not optional, for 2026-era stores.
 - Works alongside WooCommerce Blocks checkout (`checkout-block`) AND legacy shortcode checkout — messaging must be registered via both the classic hook system and a Blocks-compatible integration (`IntegrationInterface` for the Checkout block).
-- Gateway-agnostic: does not hard-depend on any specific gateway plugin; instead lists all currently enabled WooCommerce gateways in settings for admin to pick from.
+- Does not hard-depend on a specific gateway plugin, but this is not a universal-compatibility claim. The selected gateway must preserve the temporary advance total, accept the delegated payment flow and record a transaction ID.
+- A gateway is considered compatible only for the tested combination of gateway plugin version, WooCommerce version, storage mode and checkout type recorded in `release-smoke-test.md`.
+- The core advance flow supports classic checkout and Checkout Blocks. The optional extra COD fee is currently applied during Store API order processing and is not previewed as a separate fee line in Checkout Blocks before placement.
 - PHP 8.1+, WooCommerce 8.0+.
 
 ---
@@ -189,7 +203,7 @@ This single function is called both to render the checkout preview (via AJAX/JS 
 - **Security**: nonce-verified AJAX, capability checks (`manage_woocommerce`) on all admin actions, server-side re-validation of all amounts, no client-trusted pricing.
 - **Performance**: no blocking calls on checkout page load; gateway calls only fire on actual submit.
 - **i18n**: all strings translatable, `.pot` file included.
-- **Fail-safe**: if the plugin errors out, checkout must gracefully fall back to standard COD (fail open on messaging, fail closed on payment logic — i.e., never silently skip a required advance charge).
+- **Fail-safe**: messaging may degrade without blocking unrelated payment methods, but payment logic must fail closed. When an advance is required and no usable collection gateway is available, hide COD rather than silently skipping the advance.
 
 ## 10. Success Metrics
 
@@ -215,4 +229,4 @@ This single function is called both to render the checkout preview (via AJAX/JS 
 5. Gateway delegation flow for advance collection + order meta writing.
 6. Admin order list column + order detail metabox (HPOS-compatible).
 7. Edge case hardening (coupon recalculation, refund visibility, failure handling).
-8. QA across classic + block checkout, HPOS on/off, 2–3 popular Indian gateways (Razorpay, Cashfree).
+8. QA the intended gateway plugin versions across classic + block checkout and HPOS on/off; record results without treating untested gateways as compatible.

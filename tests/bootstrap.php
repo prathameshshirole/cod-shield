@@ -30,3 +30,4 @@ if ( ! function_exists( '__' ) ) {
 }
 
 require_once dirname( __DIR__ ) . '/includes/class-cod-shield-core.php';
+require_once dirname( __DIR__ ) . '/includes/class-cod-shield-eligibility.php';

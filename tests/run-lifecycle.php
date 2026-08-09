@@ -22,6 +22,7 @@
  *   4. Fulfilment guard reverts an unpaid-advance order moved to processing.
  *   5. Manual "mark advance as paid" converts the order after a failed attempt.
  *   6. Finalization is idempotent (a second call is a no-op, no duplicate notes).
+ *   7. A transaction from a different payment method cannot finalize.
  *
  * NOTE: these tests exercise the plugin's lifecycle *logic* against a fake
  * order. Full end-to-end coverage against a real WC_Order (process_payment
@@ -379,6 +380,18 @@ $bridge->finalize_advance_order( $o6->id );
 $notes_after_first = count( $o6->notes );
 $bridge->finalize_advance_order( $o6->id ); // awaiting is now 'no' -> returns early.
 check( count( $o6->notes ) === $notes_after_first, '6. idempotent: second finalize adds no note' );
+
+// 7. Gateway identity: a transaction on another method cannot finalize.
+$o7 = make_advance_order(
+	array(
+		'method' => 'different_gateway',
+		'txn'    => 'txn-wrong-method',
+	)
+);
+$bridge->finalize_advance_order( $o7->id );
+check( 20.0 === (float) $o7->get_total(), '7. gateway identity: total untouched' );
+check( 'yes' === $o7->get_meta( Core::META_AWAITING ), '7. gateway identity: still awaiting' );
+check( 'pending' === $o7->get_meta( Core::META_STATUS ), '7. gateway identity: not marked paid' );
 
 // ---------------------------------------------------------------- summary.
 echo "\n" . sprintf( '%d tests, %d failures', $GLOBALS['tests'], $GLOBALS['failures'] ) . "\n";

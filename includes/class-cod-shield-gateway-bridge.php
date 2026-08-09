@@ -151,6 +151,11 @@ class Gateway_Bridge {
 			return;
 		}
 
+		$gateway_used = (string) $order->get_meta( Core::META_GATEWAY_USED );
+		if ( '' !== $gateway_used && $gateway_used !== $order->get_payment_method() ) {
+			return;
+		}
+
 		$this->do_finalize( $order, $txn, false );
 	}
 
@@ -273,7 +278,7 @@ class Gateway_Bridge {
 		$order->set_total( $original );
 		$cod_gateway = $core->native_cod_enabled() ? WC()->payment_gateways()->payment_gateways()['cod'] : null;
 		$order->set_payment_method( 'cod' );
-		$order->set_payment_method_title( $cod_gateway ? $cod_gateway->get_title() : __( 'Cash on delivery', 'cod-shield' ) );
+		$order->set_payment_method_title( $core->get_cod_title( $cod_gateway ? $cod_gateway->get_title() : __( 'Cash on delivery', 'cod-shield' ) ) );
 
 		if ( $txn ) {
 			$order->update_meta_data( Core::META_TXN, (string) $txn );

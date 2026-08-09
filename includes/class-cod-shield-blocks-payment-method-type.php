@@ -51,7 +51,10 @@ class Blocks_Payment_Method_Type extends \Automattic\WooCommerce\Blocks\Payments
 	 */
 	public function is_active() {
 		$core = Core::instance();
-		return $core->advance_flow_active() && $core->cart_qualifies_for_cod();
+		return $core->native_cod_enabled()
+			&& $core->advance_flow_active()
+			&& $core->cart_qualifies_for_cod()
+			&& null === Eligibility::get_current_ineligibility_reason();
 	}
 
 	/**
@@ -103,7 +106,7 @@ class Blocks_Payment_Method_Type extends \Automattic\WooCommerce\Blocks\Payments
 
 		return array(
 			'gateway_id'      => Core::GATEWAY_ID,
-			'title'           => __( 'Cash on delivery (COD)', 'cod-shield' ),
+			'title'           => $core->get_cod_title(),
 			'description'     => $message,
 			'message'         => $message,
 			'advance'         => $advance,

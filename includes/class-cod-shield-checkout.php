@@ -22,6 +22,7 @@ class Checkout {
 	public function __construct() {
 		// Global COD kill switch + native COD / proxy swapping.
 		add_filter( 'woocommerce_available_payment_gateways', array( $this, 'filter_available_gateways' ), 10 );
+		add_filter( 'woocommerce_gateway_title', array( $this, 'filter_cod_title' ), 10, 2 );
 
 		// Classic checkout messaging (free/risk-free note appended to the native
 		// COD description — also the no-JS fallback). The live risk-free info
@@ -85,6 +86,12 @@ class Checkout {
 	 */
 	public function filter_available_gateways( $gateways ) {
 		$core = Core::instance();
+		if ( isset( $gateways['cod'] ) ) {
+			$custom_title = trim( (string) $core->get_option( Core::OPT_COD_TITLE, '' ) );
+			if ( '' !== $custom_title ) {
+				$gateways['cod']->title = $custom_title;
+			}
+		}
 
 		$order_pay = function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url( 'order-pay' );
 
@@ -143,6 +150,20 @@ class Checkout {
 		}
 
 		return $gateways;
+	}
+
+	/**
+	 * Apply the custom title to native COD and the advance proxy.
+	 *
+	 * @param string $title      Existing gateway title.
+	 * @param string $gateway_id Gateway id.
+	 * @return string
+	 */
+	public function filter_cod_title( $title, $gateway_id ) {
+		if ( ! in_array( $gateway_id, array( 'cod', Core::GATEWAY_ID ), true ) ) {
+			return $title;
+		}
+		return Core::instance()->get_cod_title( $title );
 	}
 
 	/**

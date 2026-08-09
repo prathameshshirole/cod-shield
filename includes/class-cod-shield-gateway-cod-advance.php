@@ -37,7 +37,7 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 		$this->has_fields         = false;
 		$this->supports           = array( 'products' );
 		$this->enabled            = 'yes'; // Availability is governed by is_available().
-		$this->title              = __( 'Cash on delivery (COD)', 'cod-shield' );
+		$this->title              = Core::instance()->get_cod_title();
 		$this->description        = '';
 	}
 
@@ -152,6 +152,24 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 			return array( 'result' => 'failure' );
 		}
 
+		$components = $this->get_order_charge_components( $order );
+		$tolerance  = function_exists( 'wc_get_price_decimals' )
+			? pow( 10, -1 * wc_get_price_decimals() )
+			: 0.01;
+		$amounts    = Core::assess_delegation_amounts(
+			$total,
+			$components['total'],
+			$components['available'],
+			$advance,
+			$advance,
+			$tolerance
+		);
+		if ( ! $amounts['safe'] ) {
+			wc_add_notice( __( 'The advance payment could not be started safely. Please choose another payment method.', 'cod-shield' ), 'error' );
+			$this->log_advance_failure( $order, 'unsafe order amount state: ' . $amounts['code'] );
+			return array( 'result' => 'failure' );
+		}
+
 		// Persist advance context before redirecting to the gateway.
 		$order->update_meta_data( Core::META_ADVANCE, $advance );
 		$order->update_meta_data( Core::META_MODE, $core->get_option( Core::OPT_MODE, 'disabled' ) );
@@ -185,11 +203,27 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 			$order->set_total( $advance );
 			$order->save();
 
-			$order->set_payment_method( $gateway->id );
-			$order->set_payment_method_title( $gateway->get_title() );
-			$order->save();
+			$amounts = Core::assess_delegation_amounts(
+				$total,
+				$components['total'],
+				$components['available'],
+				$advance,
+				(float) $order->get_total(),
+				$tolerance
+			);
+			if ( ! $amounts['safe'] ) {
+				wc_add_notice( __( 'The advance payment could not be started safely. Please choose another payment method.', 'cod-shield' ), 'error' );
+				$result = array(
+					'result'   => 'failure',
+					'messages' => 'unsafe order amount state: ' . $amounts['code'],
+				);
+			} else {
+				$order->set_payment_method( $gateway->id );
+				$order->set_payment_method_title( $gateway->get_title() );
+				$order->save();
 
-			$result = $gateway->process_payment( $order_id );
+				$result = $gateway->process_payment( $order_id );
+			}
 		} catch ( \Throwable $e ) {
 			// Route exceptions through the same failure handling so the order is
 			// restored and can never be charged the full amount by accident.
@@ -217,7 +251,7 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 		$this->log_advance_failure( $order, $result['messages'] ?? __( 'Gateway declined the payment or the customer abandoned it.', 'cod-shield' ) );
 		$order->set_total( $total );
 		$order->set_payment_method( Core::GATEWAY_ID );
-		$order->set_payment_method_title( __( 'Cash on delivery (COD)', 'cod-shield' ) );
+		$order->set_payment_method_title( $core->get_cod_title() );
 		$order->update_meta_data( Core::META_STATUS, 'failed' );
 		$order->update_meta_data( Core::META_AWAITING, 'no' );
 		$order->save();
@@ -227,6 +261,35 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 		}
 
 		return array( 'result' => 'failure' );
+	}
+
+	/**
+	 * Sum the original charge-bearing order components.
+	 *
+	 * @param \WC_Order $order Order.
+	 * @return array{total:float,available:bool}
+	 */
+	private function get_order_charge_components( $order ) {
+		$total     = 0.0;
+		$available = false;
+
+		foreach ( array( 'line_item', 'fee', 'shipping' ) as $item_type ) {
+			foreach ( $order->get_items( $item_type ) as $item ) {
+				if ( ! is_callable( array( $item, 'get_total' ) ) ) {
+					continue;
+				}
+				$available = true;
+				$total    += (float) $item->get_total();
+				if ( is_callable( array( $item, 'get_total_tax' ) ) ) {
+					$total += (float) $item->get_total_tax();
+				}
+			}
+		}
+
+		return array(
+			'total'     => $total,
+			'available' => $available,
+		);
 	}
 
 	/**

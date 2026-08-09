@@ -2,8 +2,8 @@
 /**
  * Plugin Name:       COD Shield for WooCommerce
  * Plugin URI:        https://wordpress.org/plugins/cod-shield/
- * Description:       Reduce COD RTO by collecting a partial advance payment through existing WooCommerce gateways (Razorpay, Cashfree, etc.). Includes a global COD kill switch, configurable advance rules, an extra COD fee, checkout messaging, and full admin order visibility.
- * Version:           2.0.0
+ * Description:       Reduce COD RTO by collecting a partial advance payment through one compatible WooCommerce gateway, with simple setup, optional eligibility rules, and clear order visibility.
+ * Version:           2.0.1
  * Author:            Prathamesh Shirole
  * Author URI:        https://profiles.wordpress.org/prathaverse/
  * License:           MIT
@@ -21,10 +21,22 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'COD_SHIELD_VERSION', '2.0.0' );
+define( 'COD_SHIELD_VERSION', '2.0.1' );
 define( 'COD_SHIELD_FILE', __FILE__ );
 define( 'COD_SHIELD_PATH', plugin_dir_path( __FILE__ ) );
 define( 'COD_SHIELD_URL', plugin_dir_url( __FILE__ ) );
+
+/**
+ * Put the minimal setup one click away from the Plugins screen.
+ */
+add_filter(
+	'plugin_action_links_' . plugin_basename( __FILE__ ),
+	static function ( $links ) {
+		$settings_link = '<a href="' . esc_url( admin_url( 'admin.php?page=wc-settings&tab=cod_shield' ) ) . '">' . esc_html__( 'Settings', 'cod-shield' ) . '</a>';
+		array_unshift( $links, $settings_link );
+		return $links;
+	}
+);
 
 /**
  * Lightweight PSR-4-style autoloader for the CodShield\ namespace.

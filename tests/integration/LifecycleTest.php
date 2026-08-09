@@ -45,13 +45,17 @@ class Cod_Shield_Lifecycle_Test extends WP_UnitTestCase {
 
 	#[TestDox( 'Successful delegation restores the full total and converts the order to COD' )]
 	public function test_successful_delegation_finalizes_order(): void {
-		$order  = $this->create_advance_order();
-		$result = ( new Gateway_COD_Advance() )->process_payment( $order->get_id() );
+		update_option( Core::OPT_COD_TITLE, 'Pay on Delivery' );
+		$gateway = new Gateway_COD_Advance();
+		$order   = $this->create_advance_order();
+		$result  = $gateway->process_payment( $order->get_id() );
 		$order  = $this->reload_order( $order->get_id() );
 
+		$this->assertSame( 'Pay on Delivery', $gateway->get_title() );
 		$this->assertSame( 'success', $result['result'] );
 		$this->assertSame( 100.0, (float) $order->get_total() );
 		$this->assertSame( 'cod', $order->get_payment_method() );
+		$this->assertSame( 'Pay on Delivery', $order->get_payment_method_title() );
 		$this->assertSame( 'txn-stub-001', $order->get_transaction_id() );
 		$this->assertSame( 'txn-stub-001', $order->get_meta( Core::META_TXN ) );
 		$this->assertSame( 'paid', $order->get_meta( Core::META_STATUS ) );

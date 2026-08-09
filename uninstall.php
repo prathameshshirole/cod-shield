@@ -11,6 +11,7 @@ defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
 
 $cod_shield_options = array(
 	'cod_shield_enabled',
+	'cod_shield_cod_title',
 	'cod_shield_advance_mode',
 	'cod_shield_advance_fixed',
 	'cod_shield_advance_percentage',
@@ -32,6 +33,8 @@ $cod_shield_options = array(
 	'cod_shield_fee_percentage',
 	'cod_shield_fee_taxable',
 	'cod_shield_fee_tax_class',
+	'cod_shield_cod_maximum',
+	'cod_shield_excluded_pincodes',
 );
 
 foreach ( $cod_shield_options as $cod_shield_option ) {

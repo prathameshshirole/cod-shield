@@ -19,6 +19,7 @@
 namespace CodShield\Tests;
 
 use CodShield\Core;
+use CodShield\Eligibility;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -41,8 +42,19 @@ class DefaultsTest extends TestCase {
 		$this->assertSame( 'yes', $defaults[ Core::OPT_ENABLED ] );
 	}
 
+	public function testCodTitleDefaultsToNativeGatewayTitle() {
+		$defaults = Core::get_defaults();
+		$this->assertSame( '', $defaults[ Core::OPT_COD_TITLE ] );
+	}
+
 	public function testAdvanceModeDefaultsToDisabled() {
 		$defaults = Core::get_defaults();
 		$this->assertSame( 'disabled', $defaults[ Core::OPT_MODE ] );
+	}
+
+	public function testEligibilityRulesDefaultToDisabled() {
+		$defaults = Core::get_defaults();
+		$this->assertSame( 0, $defaults[ Eligibility::OPT_MAXIMUM ] );
+		$this->assertSame( '', $defaults[ Eligibility::OPT_EXCLUDED_PINCODES ] );
 	}
 }

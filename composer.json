@@ -1,6 +1,6 @@
 {
     "name": "prathaverse/cod-shield",
-    "description": "Reduce COD RTO by collecting a partial advance payment via existing WooCommerce gateways, with a global COD kill switch, extra COD fee and transparent checkout messaging.",
+    "description": "Reduce COD RTO by collecting a partial advance payment through one compatible WooCommerce gateway.",
     "type": "wordpress-plugin",
     "license": "MIT",
     "keywords": [

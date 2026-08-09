@@ -16,6 +16,7 @@ defined( 'ABSPATH' ) || exit;
 class Core {
 
 	const OPT_ENABLED           = 'cod_shield_enabled';
+	const OPT_COD_TITLE         = 'cod_shield_cod_title';
 	const OPT_MODE              = 'cod_shield_advance_mode';
 	const OPT_FIXED             = 'cod_shield_advance_fixed';
 	const OPT_PERCENTAGE        = 'cod_shield_advance_percentage';
@@ -83,8 +84,9 @@ class Core {
 	 * @return array<string,mixed>
 	 */
 	public static function get_defaults() {
-		return array(
+		$defaults = array(
 			self::OPT_ENABLED           => 'yes',
+			self::OPT_COD_TITLE         => '',
 			self::OPT_MODE              => 'disabled',
 			self::OPT_FIXED             => 99,
 			self::OPT_PERCENTAGE        => 10,
@@ -117,6 +119,11 @@ class Core {
 			self::OPT_FEE_TAXABLE       => 'no',
 			self::OPT_FEE_TAX_CLASS     => '',
 		);
+		// Literal keys keep the pure calculation/lifecycle harness dependency-free;
+		// the Eligibility class exposes the same option names at runtime.
+		$defaults['cod_shield_cod_maximum']       = 0;
+		$defaults['cod_shield_excluded_pincodes'] = '';
+		return $defaults;
 	}
 
 	/**
@@ -131,6 +138,7 @@ class Core {
 		new Emails();
 		new Ajax();
 		new Blocks();
+		new Eligibility();
 
 		// Register the custom settings tab (WC_Settings_Page subclass).
 		add_filter(
@@ -169,6 +177,7 @@ class Core {
 	public function all_settings() {
 		return array(
 			'enabled'           => $this->get_option( self::OPT_ENABLED, 'yes' ),
+			'cod_title'         => $this->get_option( self::OPT_COD_TITLE, '' ),
 			'mode'              => $this->get_option( self::OPT_MODE, 'disabled' ),
 			'fixed'             => (float) $this->get_option( self::OPT_FIXED, 0 ),
 			'percentage'        => (float) $this->get_option( self::OPT_PERCENTAGE, 0 ),
@@ -200,6 +209,39 @@ class Core {
 	 */
 	public function cod_enabled() {
 		return 'yes' === $this->get_option( self::OPT_ENABLED, 'yes' );
+	}
+
+	/**
+	 * Customer-facing COD payment title.
+	 *
+	 * A blank plugin setting preserves the supplied native gateway title. The
+	 * final fallback is used by the internal advance proxy, which has no native
+	 * gateway title of its own during construction.
+	 *
+	 * @param string $fallback Existing gateway title.
+	 * @return string
+	 */
+	public function get_cod_title( $fallback = '' ) {
+		return self::resolve_cod_title(
+			(string) $this->get_option( self::OPT_COD_TITLE, '' ),
+			$fallback
+		);
+	}
+
+	/**
+	 * Resolve a configured COD title without WordPress runtime dependencies.
+	 *
+	 * @param string $configured Configured title.
+	 * @param string $fallback   Existing gateway title.
+	 * @return string
+	 */
+	public static function resolve_cod_title( $configured, $fallback = '' ) {
+		$configured = trim( (string) $configured );
+		if ( '' !== $configured ) {
+			return $configured;
+		}
+		$fallback = trim( (string) $fallback );
+		return '' !== $fallback ? $fallback : __( 'Cash on delivery (COD)', 'cod-shield' );
 	}
 
 	/**
@@ -255,6 +297,209 @@ class Core {
 	}
 
 	/**
+	 * Resolve the one delegation gateway ID used at runtime.
+	 *
+	 * Older versions stored a multi-select array. Keep accepting that shape,
+	 * but treat only its first non-empty scalar value as authoritative so a
+	 * disabled or incompatible primary gateway can never silently fall through
+	 * to a different processor.
+	 *
+	 * @param mixed $configured Stored gateway option.
+	 * @return string
+	 */
+	public static function resolve_delegation_gateway_id( $configured ) {
+		$candidates = is_array( $configured ) ? $configured : array( $configured );
+
+		foreach ( $candidates as $candidate ) {
+			if ( ! is_scalar( $candidate ) ) {
+				continue;
+			}
+			$id = trim( (string) $candidate );
+			if ( '' !== $id ) {
+				return $id;
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * Assess gateway characteristics without requiring a WooCommerce runtime.
+	 *
+	 * Token support by itself is not an incompatibility: some redirect
+	 * gateways expose optional saved-payment features but can still initiate a
+	 * normal fieldless payment. Direct/tokenized forms and any other gateway
+	 * that requires checkout fields are rejected.
+	 *
+	 * @param string              $configured_id  Configured gateway ID.
+	 * @param array<string,mixed> $characteristics Gateway characteristics.
+	 * @return array{compatible:bool,code:string}
+	 */
+	public static function assess_gateway_compatibility( $configured_id, array $characteristics ) {
+		$configured_id = trim( (string) $configured_id );
+		$gateway_id    = trim( (string) ( $characteristics['id'] ?? $configured_id ) );
+		$supports      = array();
+
+		foreach ( (array) ( $characteristics['supports'] ?? array() ) as $feature ) {
+			if ( is_scalar( $feature ) ) {
+				$supports[] = strtolower( trim( (string) $feature ) );
+			}
+		}
+
+		if ( '' === $configured_id || '' === $gateway_id ) {
+			return array(
+				'compatible' => false,
+				'code'       => 'missing_gateway_id',
+			);
+		}
+		if ( $configured_id !== $gateway_id ) {
+			return array(
+				'compatible' => false,
+				'code'       => 'gateway_id_mismatch',
+			);
+		}
+		if ( 'yes' !== ( $characteristics['enabled'] ?? 'no' ) ) {
+			return array(
+				'compatible' => false,
+				'code'       => 'gateway_disabled',
+			);
+		}
+		if ( in_array( $gateway_id, array( 'cod', self::GATEWAY_ID ), true ) ) {
+			return array(
+				'compatible' => false,
+				'code'       => 'cod_or_proxy_gateway',
+			);
+		}
+		if ( in_array( $gateway_id, array( 'bacs', 'cheque' ), true ) ) {
+			return array(
+				'compatible' => false,
+				'code'       => 'offline_gateway',
+			);
+		}
+		if ( empty( $characteristics['can_process'] ) ) {
+			return array(
+				'compatible' => false,
+				'code'       => 'cannot_process_payment',
+			);
+		}
+
+		$is_tokenized = in_array( 'tokenization', $supports, true );
+		if ( ! empty( $characteristics['has_fields'] ) || ! empty( $characteristics['is_direct'] ) ) {
+			return array(
+				'compatible' => false,
+				'code'       => $is_tokenized ? 'tokenized_fields_required' : 'checkout_fields_required',
+			);
+		}
+		if ( ! in_array( 'products', $supports, true ) ) {
+			return array(
+				'compatible' => false,
+				'code'       => 'product_payments_unsupported',
+			);
+		}
+
+		return array(
+			'compatible' => true,
+			'code'       => 'compatible',
+		);
+	}
+
+	/**
+	 * Validate the amount state immediately before gateway delegation.
+	 *
+	 * The component total describes the original COD liability. It deliberately
+	 * remains unchanged while the order grand total is temporarily reduced to
+	 * the advance. A mismatch in the original component total means a gateway
+	 * that rebuilds an amount from items, shipping, fees and taxes could charge
+	 * an unknown amount, so delegation must stop.
+	 *
+	 * @param float $original_total  Original order total.
+	 * @param float $component_total Sum of order items, fees, shipping and taxes.
+	 * @param bool  $has_components  Whether component totals were available.
+	 * @param float $advance         Requested advance amount.
+	 * @param float $payable_total   Persisted total visible to the gateway.
+	 * @param float $tolerance       Smallest acceptable currency difference.
+	 * @return array{safe:bool,code:string}
+	 */
+	public static function assess_delegation_amounts( $original_total, $component_total, $has_components, $advance, $payable_total, $tolerance = 0.01 ) {
+		$original_total  = (float) $original_total;
+		$component_total = (float) $component_total;
+		$advance         = (float) $advance;
+		$payable_total   = (float) $payable_total;
+		$tolerance       = max( 0.0, (float) $tolerance );
+
+		if ( $original_total <= 0 || $advance <= 0 || $advance > $original_total + $tolerance ) {
+			return array(
+				'safe' => false,
+				'code' => 'invalid_advance_amount',
+			);
+		}
+		if ( $has_components && abs( $component_total - $original_total ) > $tolerance ) {
+			return array(
+				'safe' => false,
+				'code' => 'order_components_mismatch',
+			);
+		}
+		if ( abs( $payable_total - $advance ) > $tolerance ) {
+			return array(
+				'safe' => false,
+				'code' => 'payable_total_mismatch',
+			);
+		}
+
+		return array(
+			'safe' => true,
+			'code' => 'safe',
+		);
+	}
+
+	/**
+	 * Describe the configured delegation gateway and its compatibility.
+	 *
+	 * @return array{compatible:bool,code:string,gateway:\WC_Payment_Gateway|null}
+	 */
+	public function delegation_gateway_status() {
+		$unavailable = array(
+			'compatible' => false,
+			'code'       => 'woocommerce_unavailable',
+			'gateway'    => null,
+		);
+
+		if ( ! function_exists( 'WC' ) || ! WC()->payment_gateways() ) {
+			return $unavailable;
+		}
+
+		$id = self::resolve_delegation_gateway_id(
+			$this->get_option( self::OPT_GATEWAYS, array() )
+		);
+		if ( '' === $id ) {
+			$unavailable['code'] = 'gateway_not_configured';
+			return $unavailable;
+		}
+
+		$gateways = WC()->payment_gateways()->payment_gateways();
+		if ( ! isset( $gateways[ $id ] ) || ! is_a( $gateways[ $id ], '\WC_Payment_Gateway' ) ) {
+			$unavailable['code'] = 'gateway_not_registered';
+			return $unavailable;
+		}
+
+		$gateway           = $gateways[ $id ];
+		$status            = self::assess_gateway_compatibility(
+			$id,
+			array(
+				'id'          => $gateway->id,
+				'enabled'     => $gateway->enabled,
+				'has_fields'  => $gateway->has_fields,
+				'supports'    => $gateway->supports,
+				'can_process' => is_callable( array( $gateway, 'process_payment' ) ),
+				'is_direct'   => is_a( $gateway, '\WC_Payment_Gateway_CC' )
+					|| is_a( $gateway, '\WC_Payment_Gateway_ECheck' ),
+			)
+		);
+		$status['gateway'] = $status['compatible'] ? $gateway : null;
+		return $status;
+	}
+
+	/**
 	 * The configured delegation gateway object, or null.
 	 *
 	 * Looks the gateway up in the FULL registered gateway list (never the
@@ -264,20 +509,8 @@ class Core {
 	 * @return \WC_Payment_Gateway|null
 	 */
 	public function delegation_gateway() {
-		if ( ! function_exists( 'WC' ) || ! WC()->payment_gateways() ) {
-			return null;
-		}
-		$ids = (array) $this->get_option( self::OPT_GATEWAYS, array() );
-		if ( empty( $ids ) ) {
-			return null;
-		}
-		$gateways = WC()->payment_gateways()->payment_gateways();
-		foreach ( $ids as $id ) {
-			if ( isset( $gateways[ $id ] ) && 'yes' === $gateways[ $id ]->enabled ) {
-				return $gateways[ $id ];
-			}
-		}
-		return null;
+		$status = $this->delegation_gateway_status();
+		return $status['compatible'] ? $status['gateway'] : null;
 	}
 
 	/**
