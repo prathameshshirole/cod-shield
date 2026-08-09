@@ -7,9 +7,9 @@ Requires PHP: 8.1
 Requires Plugins: woocommerce
 WC requires at least: 8.0
 WC tested up to: 10.9
-Stable tag: 2.0.1
-License: MIT
-License URI: https://opensource.org/licenses/MIT
+Stable tag: 2.0.2
+License: GPLv2 or later
+License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
 Reduce COD RTO by collecting a partial advance payment through one compatible WooCommerce gateway, with a global COD kill switch and clear checkout messaging.
 
@@ -74,6 +74,10 @@ Yes. CartFlows checkout steps use the native WooCommerce cart, so the advance is
 
 == Changelog ==
 
+= 2.0.2 =
+* **Changed: relicensed under GNU GPL v2 or later.** Plugin metadata, package metadata, documentation, contribution terms, translation template and the bundled license text now consistently declare the WordPress-recommended GPL license.
+* **Fixed: Cashfree now appears in the advance gateway selector.** Cashfree's hosted redirect gateway marks itself as having checkout fields only to display its description; COD Shield now recognizes the official Cashfree gateway without weakening field-safety checks for other payment methods.
+
 = 2.0.1 =
 * **Added: editable COD checkout title.** Set a custom customer-facing Cash on Delivery name under WooCommerce → Settings → COD Shield → General. The title is shared by native COD, the advance proxy, classic checkout, Checkout Blocks and finalized order records; leaving it blank preserves WooCommerce's existing COD title.
 * **Hardened manual advance reconciliation.** The admin action now uses POST with an order-scoped capability check and nonce verification.
@@ -82,11 +86,11 @@ Yes. CartFlows checkout steps use the native WooCommerce cart, so the advance is
 = 2.0.0 =
 * **Added: highlighted advance notice at checkout.** The advance line under the COD payment method ("An advance of ₹99 secures this order…") now renders bold inside a warm amber callout on both the classic and the block checkout, so the amount due right now is scanned in a glance. This also fixes the risk-free info box, whose styles previously lived in admin-only CSS and never loaded on the storefront.
 * **Fixed: raw HTML shown on the General settings tab instead of the section banner.** The banner `<img>` was placed in the section `title`, which WooCommerce renders through `esc_html()` — so the markup printed as literal text. The logo now renders correctly in the section description (served from `admin/img/`, which ships with the plugin, instead of the `.wordpress-org/` listing-artwork folder that is absent on real installs).
-* **Fresh start, licensed under MIT.** The plugin is now released under the MIT License (previously GPL-2.0-or-later) — use it freely in commercial and closed-source projects. See the LICENSE file.
+* **Licensing standardized.** The plugin is distributed under GNU GPL v2 or later, the license recommended for WordPress plugins. See the LICENSE file.
 * **Renamed slug to `cod-shield`.** The slug, folder and text-domain are now `cod-shield` (previously `wc-cod-shield`) so the plugin satisfies the WordPress.org naming guideline — "wc" is a restricted term that cannot appear in a plugin slug. No settings or stored data are affected.
 * **Brand-new logo asset set.** All banners, icons and the social preview are regenerated from a single high-resolution master logo with zero distortion — the WordPress.org banner artwork is no longer stretched or off-centre. A reusable generator (`tools/generate-assets.py`) rebuilds every asset from the one master file.
 * **Open-source community setup.** Added CONTRIBUTING.md, CODE_OF_CONDUCT.md and SECURITY.md plus issue and pull-request templates, ready for outside contributors.
-* **Professional GitHub presence.** Complete README, MIT license, repo description, topics and a 100% community profile.
+* **Professional GitHub presence.** Complete README, GPL license, repo description, topics and a 100% community profile.
 
 = 1.1.4 =
 * **Fixed: fatal error on the WooCommerce → Orders admin screen (HPOS).** Two callbacks on the `woocommerce_order_list_table_prepare_items_query_args` hook declared a required second `$order_type` parameter, but WooCommerce has applied this filter with a single argument (the query-args array) since WC 6.9.0. Every HPOS orders-list render threw `ArgumentCountError` and rendered a blank page. The callbacks now declare exactly one parameter, and a structural regression test pins both the registration and the signatures.
@@ -155,11 +159,14 @@ Yes. CartFlows checkout steps use the native WooCommerce cart, so the advance is
 
 == Upgrade Notice ==
 
+= 2.0.2 =
+* Relicenses the plugin under GNU GPL v2 or later and restores the official Cashfree gateway in the advance gateway selector.
+
 = 2.0.1 =
 * Adds an editable COD checkout title and strengthens payment reconciliation and release validation.
 
 = 2.0.0 =
-* Fresh start: now MIT licensed with a new logo/banner set and open-source community files. The slug, folder and text-domain are now `cod-shield` (was `wc-cod-shield`) for WordPress.org naming compliance. No functional or settings changes — safe to update.
+* Fresh start with a new logo/banner set and open-source community files. The slug, folder and text-domain are now `cod-shield` (was `wc-cod-shield`) for WordPress.org naming compliance. No functional or settings changes — safe to update.
 
 = 1.1.0 =
 * Fresh installs no longer hide COD below ₹500 by default, and new installs apply Processing (not On hold) after the advance is paid. Existing installs are unaffected. The manual mark-paid action now warns if the gateway may have charged the full order. Review the changelog before updating.

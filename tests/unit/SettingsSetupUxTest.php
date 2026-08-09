@@ -49,6 +49,7 @@ class SettingsSetupUxTest extends TestCase {
 		$this->assertStringContainsString( '$candidates = is_array( $raw_value ) ? $raw_value : array( $raw_value );', $source );
 		$this->assertStringContainsString( 'return array( $gateway_id );', $source );
 		$this->assertStringContainsString( 'Core::assess_gateway_compatibility(', $source );
+		$this->assertStringContainsString( "'gateway_class' => get_class( \$gateway )", $source );
 	}
 
 	#[TestDox( 'Invalid native COD and advance gateway configurations display warnings' )]

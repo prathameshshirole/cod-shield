@@ -49,7 +49,7 @@ If you still need clarification, open an [Issue](https://github.com/prathameshsh
 
 > ### Legal Notice
 >
-> When contributing to this project, you must agree that you have authored 100% of the content, that you have the necessary rights to the content, and that the content you contribute may be provided under the project license ([MIT](LICENSE)).
+> When contributing to this project, you must agree that you have authored 100% of the content, that you have the necessary rights to the content, and that the content you contribute may be provided under the project license ([GNU GPL v2 or later](LICENSE)).
 
 ### Reporting Bugs
 

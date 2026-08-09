@@ -736,12 +736,13 @@ class Settings extends \WC_Settings_Page {
 				$status = Core::assess_gateway_compatibility(
 					$id,
 					array(
-						'id'          => $gateway->id,
-						'enabled'     => $gateway->enabled,
-						'has_fields'  => $gateway->has_fields,
-						'supports'    => $gateway->supports,
-						'can_process' => is_callable( array( $gateway, 'process_payment' ) ),
-						'is_direct'   => is_a( $gateway, '\\WC_Payment_Gateway_CC' )
+						'id'            => $gateway->id,
+						'enabled'       => $gateway->enabled,
+						'has_fields'    => $gateway->has_fields,
+						'supports'      => $gateway->supports,
+						'can_process'   => is_callable( array( $gateway, 'process_payment' ) ),
+						'gateway_class' => get_class( $gateway ),
+						'is_direct'     => is_a( $gateway, '\\WC_Payment_Gateway_CC' )
 							|| is_a( $gateway, '\\WC_Payment_Gateway_ECheck' ),
 					)
 				);

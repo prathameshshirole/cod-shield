@@ -115,6 +115,41 @@ class GatewaySafetyTest extends TestCase {
 		$this->assertTrue( $result['compatible'] );
 	}
 
+	#[TestDox( 'Cashfree description fields do not block its hosted redirect flow' )]
+	public function test_cashfree_description_fields_are_compatible(): void {
+		$result = Core::assess_gateway_compatibility(
+			'cashfree',
+			$this->gateway_characteristics(
+				array(
+					'id'            => 'cashfree',
+					'gateway_class' => 'WC_Cashfree_Payments',
+					'has_fields'    => true,
+					'supports'      => array( 'products', 'refunds' ),
+				)
+			)
+		);
+
+		$this->assertTrue( $result['compatible'] );
+		$this->assertSame( 'compatible', $result['code'] );
+	}
+
+	#[TestDox( 'Unknown gateways cannot bypass field safety by using the Cashfree ID' )]
+	public function test_cashfree_id_requires_the_official_gateway_class(): void {
+		$result = Core::assess_gateway_compatibility(
+			'cashfree',
+			$this->gateway_characteristics(
+				array(
+					'id'            => 'cashfree',
+					'gateway_class' => 'Unrelated_Cashfree_Gateway',
+					'has_fields'    => true,
+				)
+			)
+		);
+
+		$this->assertFalse( $result['compatible'] );
+		$this->assertSame( 'checkout_fields_required', $result['code'] );
+	}
+
 	#[TestDox( 'Matching order components and payable advance are safe' )]
 	public function test_consistent_delegation_amounts_are_safe(): void {
 		$result = Core::assess_delegation_amounts( 100, 100, true, 20, 20 );

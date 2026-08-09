@@ -329,7 +329,9 @@ class Core {
 	 * Token support by itself is not an incompatibility: some redirect
 	 * gateways expose optional saved-payment features but can still initiate a
 	 * normal fieldless payment. Direct/tokenized forms and any other gateway
-	 * that requires checkout fields are rejected.
+	 * that requires checkout fields are rejected. The official Cashfree gateway
+	 * is the narrow exception: it marks has_fields only to render its payment
+	 * description before starting the hosted redirect.
 	 *
 	 * @param string              $configured_id  Configured gateway ID.
 	 * @param array<string,mixed> $characteristics Gateway characteristics.
@@ -383,8 +385,10 @@ class Core {
 			);
 		}
 
-		$is_tokenized = in_array( 'tokenization', $supports, true );
-		if ( ! empty( $characteristics['has_fields'] ) || ! empty( $characteristics['is_direct'] ) ) {
+		$is_tokenized         = in_array( 'tokenization', $supports, true );
+		$gateway_class        = ltrim( (string) ( $characteristics['gateway_class'] ?? '' ), '\\' );
+		$is_cashfree_redirect = 'cashfree' === $gateway_id && 'WC_Cashfree_Payments' === $gateway_class;
+		if ( ! empty( $characteristics['is_direct'] ) || ( ! empty( $characteristics['has_fields'] ) && ! $is_cashfree_redirect ) ) {
 			return array(
 				'compatible' => false,
 				'code'       => $is_tokenized ? 'tokenized_fields_required' : 'checkout_fields_required',
@@ -486,12 +490,13 @@ class Core {
 		$status            = self::assess_gateway_compatibility(
 			$id,
 			array(
-				'id'          => $gateway->id,
-				'enabled'     => $gateway->enabled,
-				'has_fields'  => $gateway->has_fields,
-				'supports'    => $gateway->supports,
-				'can_process' => is_callable( array( $gateway, 'process_payment' ) ),
-				'is_direct'   => is_a( $gateway, '\WC_Payment_Gateway_CC' )
+				'id'            => $gateway->id,
+				'enabled'       => $gateway->enabled,
+				'has_fields'    => $gateway->has_fields,
+				'supports'      => $gateway->supports,
+				'can_process'   => is_callable( array( $gateway, 'process_payment' ) ),
+				'gateway_class' => get_class( $gateway ),
+				'is_direct'     => is_a( $gateway, '\WC_Payment_Gateway_CC' )
 					|| is_a( $gateway, '\WC_Payment_Gateway_ECheck' ),
 			)
 		);

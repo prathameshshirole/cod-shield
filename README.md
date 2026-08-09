@@ -6,11 +6,11 @@
 
 > Reduce **COD RTO** (Return to Origin) by collecting a **partial advance payment** through one compatible WooCommerce payment gateway — without forcing customers to pay in full.
 
-[![Version](https://img.shields.io/badge/version-2.0.1-blue.svg)](https://wordpress.org/plugins/cod-shield/)
+[![Version](https://img.shields.io/badge/version-2.0.2-blue.svg)](https://wordpress.org/plugins/cod-shield/)
 [![WordPress](https://img.shields.io/badge/WordPress-6.4%2B-21759b.svg)](https://wordpress.org/plugins/cod-shield/)
 [![WooCommerce](https://img.shields.io/badge/WooCommerce-8.0%2B-96588a.svg)](https://woocommerce.com/)
 [![PHP](https://img.shields.io/badge/PHP-8.1%2B-777bb4.svg)](https://www.php.net/)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-GPL--2.0%2B-blue.svg)](LICENSE)
 [![Code Style](https://img.shields.io/badge/code%20style-WordPress-0073aa.svg)](phpcs.xml.dist)
 
 ---
@@ -332,8 +332,9 @@ Bug reports and feature requests: use the [issue templates](.github/ISSUE_TEMPLA
 
 See [readme.txt](readme.txt) for the full changelog. Notable recent releases:
 
+- **2.0.2** — Restored official Cashfree hosted checkout support in the advance gateway selector
 - **2.0.1** — Editable COD title, hardened manual reconciliation, and release quality gates
-- **2.0.0** — Fresh start: MIT license, brand-new undistorted logo asset set with reusable generator, community setup (CONTRIBUTING/CODE_OF_CONDUCT/SECURITY)
+- **2.0.0** — Fresh start: GPL licensing, brand-new undistorted logo asset set with reusable generator, community setup (CONTRIBUTING/CODE_OF_CONDUCT/SECURITY)
 - **1.1.2** — Fixed block checkout blocking all low-value orders when a threshold is set; added lifecycle test coverage
 - **1.1.0** — Threshold now off by default; new installs default to Processing after advance; overcharge guard on manual reconciliation
 - **1.0.8** — Overcharge guard, manual "mark advance as paid" reconciliation, advance-only pay-for-order retry
@@ -342,15 +343,9 @@ See [readme.txt](readme.txt) for the full changelog. Notable recent releases:
 
 ## License
 
-[MIT](LICENSE) — permissive open-source license.
+[GNU General Public License v2 or later](LICENSE).
 
-Copyright (c) 2026 Prathamesh Shirole
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+Copyright (C) 2026 Prathamesh Shirole. See [LICENSE](LICENSE) for the complete license terms.
 
 ---
 
