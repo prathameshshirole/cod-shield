@@ -33,6 +33,7 @@
     },
     "scripts": {
         "test": "phpunit && php tests/run-lifecycle.php",
+        "test:integration": "phpunit -c phpunit-integration.xml.dist",
         "test:standalone": "php tests/run-tests.php",
         "test:lifecycle": "php tests/run-lifecycle.php",
         "lint": "phpcs",

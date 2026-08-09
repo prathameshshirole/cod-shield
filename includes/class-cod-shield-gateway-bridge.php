@@ -321,14 +321,14 @@ class Gateway_Bridge {
 	 * @return void
 	 */
 	public function handle_manual_mark_advance_paid() {
-		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Verified via check_admin_referer below.
-		$order_id = isset( $_GET['order_id'] ) ? absint( wp_unslash( $_GET['order_id'] ) ) : 0;
-		check_admin_referer( Core::NONCE_MANUAL_PAID . '_' . $order_id );
+		// phpcs:ignore WordPress.Security.NonceVerification.Missing -- Verified via check_admin_referer below.
+		$order_id = isset( $_POST['cod_shield_order_id'] ) ? absint( wp_unslash( $_POST['cod_shield_order_id'] ) ) : 0;
+		check_admin_referer( Core::NONCE_MANUAL_PAID . '_' . $order_id, 'cod_shield_manual_paid_nonce' );
 
 		$order = $order_id ? wc_get_order( $order_id ) : null;
 		$back  = $order ? $order->get_edit_order_url() : admin_url( 'edit.php?post_type=shop_order' );
 
-		if ( ! current_user_can( 'edit_shop_orders' ) ) {
+		if ( ! current_user_can( 'edit_shop_order', $order_id ) ) {
 			wp_safe_redirect( add_query_arg( 'cod_shield_notice', 'denied', $back ) );
 			exit;
 		}

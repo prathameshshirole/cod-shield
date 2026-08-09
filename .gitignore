@@ -4,6 +4,8 @@
 
 # Build & cache
 *.log
+/cod-shield.zip
+/dist/
 .phpunit.result.cache
 .phpunit.cache/
 wp-cli.local.yml

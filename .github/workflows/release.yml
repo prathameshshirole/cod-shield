@@ -3,14 +3,18 @@ name: Build & release plugin zip
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
   workflow_dispatch: {}
 
 permissions:
   contents: write
 
 jobs:
+  quality:
+    uses: ./.github/workflows/ci.yml
+
   build-and-release:
+    needs: quality
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -29,8 +33,8 @@ jobs:
       - name: Verify package
         run: |
           unzip -l dist/cod-shield.zip | grep -q 'cod-shield/cod-shield.php'
-          if unzip -l dist/cod-shield.zip | grep -q 'cod-shield/.wordpress-org/'; then
-            echo 'ERROR: listing artwork leaked into the package' >&2
+          if unzip -l dist/cod-shield.zip | grep -Eq 'cod-shield/(bin|tests|tools|vendor|\.wordpress-org)/|cod-shield/(AGENTS\.md|composer\.(json|lock)|phpunit.*\.xml|phpcs\.xml)'; then
+            echo 'ERROR: development-only files leaked into the package' >&2
             exit 1
           fi
           echo "Package OK: $(unzip -l dist/cod-shield.zip | tail -1)"

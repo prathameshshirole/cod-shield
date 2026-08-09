@@ -53,13 +53,9 @@
 }
 
 .cod-shield-manual-paid-form {
-	margin-top: 12px;
+	margin: 12px 0 0;
 	padding-top: 10px;
 	border-top: 1px solid #e0e0e0;
-}
-
-.cod-shield-manual-paid-form p {
-	margin: 0;
 }
 
 /* Checkout info box (classic) — lives in public/css/checkout.css, which is

@@ -17,7 +17,7 @@ default (dependency-free) dev setup.
 | `composer test` → `tests/run-lifecycle.php` | Money-lifecycle **logic**: `do_finalize` (txn-gating, normal, overcharge guard), fulfilment revert guard, manual mark, idempotency (24 tests) | Plain PHP + fake order |
 | `php tests/run-tests.php` | Advance/fee engines (no composer) (25 tests) | Plain PHP |
 
-## What these integration tests add (CI)
+## What the integration suite adds
 
 - The real `process_payment()` → gateway delegation → `payment_complete()` →
   `finalize_advance_order()` chain, including the late-recorded-transaction
@@ -30,20 +30,19 @@ default (dependency-free) dev setup.
 ## Setup (once per machine / CI image)
 
 ```bash
-# 1. Install the WordPress + WooCommerce test frameworks.
-bin/install-wp-tests.sh wordpress_test root '' localhost latest
-composer install          # brings in phpunit, woocommerce/woocommerce dev
+# 1. Install WordPress and its PHPUnit test framework.
+bash bin/install-wp-tests.sh wordpress_test root '' 127.0.0.1 latest
+composer install
 
-# 2. Register the stub delegation gateway + load the plugin.
-#    The integration bootstrap (tests/integration/bootstrap.php) requires the
-#    plugin main file, registers WC_Gateway_COD_Shield_Stub, and points
-#    Core::OPT_GATEWAYS at it.
+# 2. Install WooCommerce under the test WordPress plugins directory, or point
+#    WC_TEST_PLUGIN_FILE at an existing woocommerce.php file.
 ```
 
 ## Run
 
 ```bash
-composer test:integration   # phpunit -c phpunit-integration.xml.dist
+COD_SHIELD_ORDER_STORAGE=legacy composer test:integration
+COD_SHIELD_ORDER_STORAGE=hpos composer test:integration
 ```
 
 ## Writing a new lifecycle integration test
@@ -58,15 +57,20 @@ composer test:integration   # phpunit -c phpunit-integration.xml.dist
 Use `tests/integration/Stub_Gateway.php` to control the delegation outcome
 (`$should_succeed`, `$charge_override`, `$txn_id`).
 
-## Coverage targets (mirrors REVIEW-1.1.1 §2 Major 2)
+## Automated coverage
 
-- [ ] `process_payment` success: total swapped to advance, meta attached,
+- [x] `process_payment` success: total swapped to advance, meta attached,
       delegation invoked, order finalizes to COD with full total + processing.
-- [ ] `process_payment` failure: total + proxy method restored; `OPT_FAILURE`
+- [x] `process_payment` failure: total + proxy method restored; `OPT_FAILURE`
       cancels or leaves pending.
-- [ ] Overcharge guard (gateway charges full total): order flagged, not
+- [x] Overcharge guard (gateway charges full total): order flagged, not
       converted to COD, remaining reduced.
-- [ ] Fulfilment guard: unpaid advance moved to processing → reverted to pending.
-- [ ] Manual mark: converts to COD after a failed attempt.
-- [ ] Block-checkout `filter_store_api_cart_errors`: errors added only when COD
+- [x] Fulfilment guard: unpaid advance moved to processing → reverted to pending.
+- [x] Manual mark: converts to COD after a failed attempt and is idempotent.
+- [x] Block-checkout `filter_store_api_cart_errors`: errors added only when COD
       is the chosen method; non-COD orders never blocked.
+- [x] Block-checkout COD fee: persisted exactly once across repeated callbacks.
+
+GitHub Actions runs this suite under legacy and HPOS storage against the oldest
+supported WordPress/PHP pair and the current test pair. Credentialed gateway
+sandbox coverage remains the release smoke test in `docs/release-smoke-test.md`.

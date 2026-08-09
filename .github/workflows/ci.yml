@@ -1,0 +1,86 @@
+name: Quality checks
+
+on:
+  push:
+    branches:
+      - main
+  pull_request: {}
+  workflow_call: {}
+
+permissions:
+  contents: read
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.1"
+          coverage: none
+          tools: composer:v2
+      - uses: ramsey/composer-install@v3
+      - name: Validate Composer metadata
+        run: composer validate --strict
+      - name: Check coding standards
+        run: composer lint
+      - name: Run unit and lifecycle tests
+        run: composer test
+
+  integration:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_DATABASE: wordpress_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - php: "8.1"
+            wordpress: "6.4"
+            woocommerce: "8.0.3"
+            storage: legacy
+          - php: "8.1"
+            wordpress: "6.4"
+            woocommerce: "8.0.3"
+            storage: hpos
+          - php: "8.4"
+            wordpress: latest
+            woocommerce: "10.9.0"
+            storage: legacy
+          - php: "8.4"
+            wordpress: latest
+            woocommerce: "10.9.0"
+            storage: hpos
+    env:
+      WP_TESTS_DIR: /tmp/wordpress-tests-lib
+      WP_CORE_DIR: /tmp/wordpress
+      WC_TEST_PLUGIN_FILE: /tmp/wordpress/wp-content/plugins/woocommerce/woocommerce.php
+      COD_SHIELD_ORDER_STORAGE: ${{ matrix.storage }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: composer:v2
+      - uses: ramsey/composer-install@v3
+      - name: Install WordPress test environment
+        run: bash bin/install-wp-tests.sh wordpress_test root '' 127.0.0.1:3306 "${{ matrix.wordpress }}"
+      - name: Install declared WooCommerce version
+        run: |
+          curl -sS --retry 3 -L "https://downloads.wordpress.org/plugin/woocommerce.${{ matrix.woocommerce }}.zip" -o /tmp/woocommerce.zip
+          unzip -q /tmp/woocommerce.zip -d /tmp/wordpress/wp-content/plugins
+      - name: Run WooCommerce integration tests
+        run: composer test:integration

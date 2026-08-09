@@ -454,14 +454,12 @@ class Order_UI {
 		// gateway, or the gateway never recorded a transaction id), offer an
 		// explicit admin action instead of leaving the order stuck awaiting.
 		if ( $view->advance > 0 && 'paid' !== $view->status ) {
-			$action  = 'admin-post.php?action=' . Core::NONCE_MANUAL_PAID . '&order_id=' . $order->get_id();
 			$confirm = esc_js( __( 'Mark the advance as paid without a gateway transaction? Only do this if you have collected the advance elsewhere (e.g. bank transfer or cash).', 'cod-shield' ) );
-			echo '<form method="post" action="' . esc_url( admin_url( $action ) ) . '" class="cod-shield-manual-paid-form">';
-			wp_nonce_field( Core::NONCE_MANUAL_PAID . '_' . $order->get_id() );
-			echo '<p><button type="submit" class="button button-link-delete" onclick="return confirm(\'' . $confirm . '\');">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc_js() is the correct escape for an inline-JS confirm string; esc_html() would corrupt the JS.
+			echo '<input type="hidden" name="cod_shield_order_id" value="' . esc_attr( $order->get_id() ) . '" />';
+			wp_nonce_field( Core::NONCE_MANUAL_PAID . '_' . $order->get_id(), 'cod_shield_manual_paid_nonce', false );
+			echo '<p class="cod-shield-manual-paid-form"><button type="submit" name="action" value="' . esc_attr( Core::NONCE_MANUAL_PAID ) . '" formaction="' . esc_url( admin_url( 'admin-post.php' ) ) . '" formmethod="post" class="button button-link-delete" onclick="return confirm(\'' . $confirm . '\');">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc_js() escapes the confirmation string used by the inline confirm call.
 			echo esc_html__( 'Mark advance as paid (manual)', 'cod-shield' );
 			echo '</button></p>';
-			echo '</form>';
 		}
 
 		echo '<p class="cod-shield-metabox-note">' . esc_html__( 'Refunds of the advance must be processed manually through the gateway\'s own refund flow.', 'cod-shield' ) . '</p>';
