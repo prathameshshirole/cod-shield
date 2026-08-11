@@ -136,6 +136,18 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 			return array( 'result' => 'failure' );
 		}
 
+		// A charge may already be captured and awaiting finalization (webhook
+		// latency / lost redirect), or the order was cancelled while flagged
+		// for advance reconciliation. Refusing re-initiation prevents the
+		// retry double-charge that orphans the first capture.
+		if ( $order->get_transaction_id() || 'review' === $order->get_meta( Core::META_AWAITING ) ) {
+			wc_add_notice(
+				__( 'An advance payment for this order is already being processed. Please wait for confirmation before retrying.', 'cod-shield' ),
+				'error'
+			);
+			return array( 'result' => 'failure' );
+		}
+
 		$total   = (float) $order->get_total();
 		$advance = $core->calculate_advance( $total );
 

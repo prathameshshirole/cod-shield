@@ -139,6 +139,7 @@ class Core {
 		new Ajax();
 		new Blocks();
 		new Eligibility();
+		new PDF_Support();
 
 		// Register the custom settings tab (WC_Settings_Page subclass).
 		add_filter(

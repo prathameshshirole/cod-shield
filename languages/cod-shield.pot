@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-08-09T19:38:39+00:00\n"
+"POT-Creation-Date: 2026-08-11T22:55:18+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: cod-shield\n"
@@ -60,7 +60,7 @@ msgstr ""
 
 #: includes/class-cod-shield-checkout.php:494
 #: includes/class-cod-shield-checkout.php:601
-#: includes/class-cod-shield-gateway-cod-advance.php:150
+#: includes/class-cod-shield-gateway-cod-advance.php:162
 msgid "Cash on Delivery is temporarily unavailable. Please choose another payment method."
 msgstr ""
 
@@ -102,7 +102,7 @@ msgstr ""
 msgid "Advance payment received"
 msgstr ""
 
-#: includes/class-cod-shield-core.php:244
+#: includes/class-cod-shield-core.php:245
 #: includes/class-cod-shield-settings.php:408
 msgid "Cash on delivery (COD)"
 msgstr ""
@@ -155,41 +155,45 @@ msgid "Due on delivery: %s"
 msgstr ""
 
 #. translators: 1: charged amount, 2: advance amount, 3: transaction id, 4: remaining amount.
-#: includes/class-cod-shield-gateway-bridge.php:267
+#: includes/class-cod-shield-gateway-bridge.php:281
 #, php-format
 msgid "WARNING: the order total at payment completion (%1$s) exceeded the recorded advance (%2$s) — the gateway may have charged more than the advance (transaction: %3$s). The order was NOT converted to COD; %4$s remains payable on delivery. Verify the charge in the gateway dashboard before fulfilment."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-bridge.php:281
+#: includes/class-cod-shield-gateway-bridge.php:295
 msgid "Cash on delivery"
 msgstr ""
 
 #. translators: 1: advance amount, 2: user display name.
-#: includes/class-cod-shield-gateway-bridge.php:295
+#: includes/class-cod-shield-gateway-bridge.php:309
 #, php-format
 msgid "COD advance of %1$s manually marked as paid by %2$s — no gateway transaction recorded. Verify collection separately."
 msgstr ""
 
 #. translators: 1: advance amount, 2: gateway id, 3: transaction id, 4: remaining amount.
-#: includes/class-cod-shield-gateway-bridge.php:305
+#: includes/class-cod-shield-gateway-bridge.php:319
 #, php-format
 msgid "COD advance of %1$s collected via %2$s (transaction: %3$s). %4$s remains payable on delivery."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-bridge.php:359
+#: includes/class-cod-shield-gateway-bridge.php:373
 msgid "COD advance marked as paid. The order was converted to Cash on Delivery."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-bridge.php:360
+#: includes/class-cod-shield-gateway-bridge.php:374
 msgid "You do not have permission to mark an advance as paid."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-bridge.php:361
+#: includes/class-cod-shield-gateway-bridge.php:375
 msgid "The order could not be found, or its advance is already paid."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-bridge.php:419
+#: includes/class-cod-shield-gateway-bridge.php:433
 msgid "Moved back to pending: this order cannot be processing or completed while its COD advance is unpaid."
+msgstr ""
+
+#: includes/class-cod-shield-gateway-bridge.php:484
+msgid "ADVANCE RECONCILIATION REQUIRED: this order was cancelled while an advance payment may have been captured. Verify with the gateway and refund if charged."
 msgstr ""
 
 #: includes/class-cod-shield-gateway-cod-advance.php:35
@@ -206,31 +210,35 @@ msgstr ""
 msgid "Pay %1$s now, %2$s on delivery (COD)."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-cod-advance.php:144
+#: includes/class-cod-shield-gateway-cod-advance.php:145
+msgid "An advance payment for this order is already being processed. Please wait for confirmation before retrying."
+msgstr ""
+
+#: includes/class-cod-shield-gateway-cod-advance.php:156
 msgid "The advance payment is not available for this order. Please choose a different payment method."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-cod-advance.php:168
-#: includes/class-cod-shield-gateway-cod-advance.php:215
+#: includes/class-cod-shield-gateway-cod-advance.php:180
+#: includes/class-cod-shield-gateway-cod-advance.php:227
 msgid "The advance payment could not be started safely. Please choose another payment method."
 msgstr ""
 
 #. translators: 1: advance amount, 2: gateway title.
-#: includes/class-cod-shield-gateway-cod-advance.php:240
+#: includes/class-cod-shield-gateway-cod-advance.php:252
 #, php-format
 msgid "Advance payment of %1$s initiated via %2$s. Awaiting gateway confirmation."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-cod-advance.php:251
+#: includes/class-cod-shield-gateway-cod-advance.php:263
 msgid "Gateway declined the payment or the customer abandoned it."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-cod-advance.php:260
+#: includes/class-cod-shield-gateway-cod-advance.php:272
 msgid "Advance payment failed; order cancelled per SureOrder settings."
 msgstr ""
 
 #. translators: %s: failure reason.
-#: includes/class-cod-shield-gateway-cod-advance.php:306
+#: includes/class-cod-shield-gateway-cod-advance.php:318
 #, php-format
 msgid "COD advance payment failed: %s"
 msgstr ""
@@ -324,6 +332,14 @@ msgstr ""
 
 #: includes/class-cod-shield-order-ui.php:509
 msgid "Advance pending"
+msgstr ""
+
+#: includes/class-cod-shield-pdf-support.php:81
+msgid "Advance paid online"
+msgstr ""
+
+#: includes/class-cod-shield-pdf-support.php:85
+msgid "Balance due on delivery"
 msgstr ""
 
 #: includes/class-cod-shield-settings.php:120

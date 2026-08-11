@@ -36,6 +36,13 @@ Use these result values in the matrix: `Not run`, `Pass`, `Fail` or `Blocked`. A
 4. Retry from the pay-for-order page and confirm no full-payment gateway is offered.
 5. Replay the success webhook and confirm no duplicate notes, fees or status changes.
 6. Verify customer/admin emails and the order screen show matching advance and remaining amounts.
+7. With PDF Invoices & Packing Slips for WooCommerce installed, generate the invoice PDF and confirm the totals show the advance paid online and the balance due on delivery; a packing slip generated for the same order is unaffected.
+
+## Cancellation protection
+
+1. Place an advance order and let it age past `woocommerce_hold_stock_minutes` with the "cancel unpaid orders" setting enabled; confirm the order is **not** auto-cancelled while it is awaiting its advance.
+2. Cancel an awaiting-advance order that has a recorded transaction id (simulate a captured charge whose finalization never ran); confirm the order carries the "ADVANCE RECONCILIATION REQUIRED" note and the advance shows as review/pending, not silently dropped.
+3. On a cancelled/review order, open pay-for-order and confirm retrying the advance is refused with the "already being processed" notice and no second charge is initiated.
 
 ## Advanced settings
 

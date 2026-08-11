@@ -28,6 +28,10 @@
  *  7. Manual reconciliation: an admin can mark an advance as paid from the
  *     order screen when the gateway never recorded a transaction id (e.g. the
  *     customer paid outside the gateway). Nonce + capability checked.
+ *  8. Cancellation protection: awaiting-advance orders are exempt from WC
+ *     core's "cancel unpaid orders" scheduler, and any cancelled order that
+ *     may carry a captured advance is flagged 'review' for manual
+ *     reconciliation instead of silently dropping the collected money.
  *
  * Fail-closed: if no delegation gateway is configured, the proxy is
  * unavailable AND native COD is removed from checkout, so an advance can
@@ -69,6 +73,16 @@ class Gateway_Bridge {
 		// Fulfilment guard: an order must never reach processing/completed
 		// while its advance is still unpaid. Reverts such transitions.
 		add_action( 'woocommerce_order_status_changed', array( $this, 'revert_unpaid_advance_status' ), 10, 4 );
+
+		// Auto-cancel protection: WC core's "cancel unpaid orders" scheduler
+		// must never kill an order whose advance charge is in flight or
+		// already captured but not yet finalized.
+		add_filter( 'woocommerce_cancel_unpaid_order', array( $this, 'prevent_auto_cancel_of_advance_order' ), 10, 2 );
+
+		// Cancellation reconciliation: a cancelled order that may still carry
+		// a captured advance is flagged for manual review instead of silently
+		// dropping the collected money.
+		add_action( 'woocommerce_order_status_cancelled', array( $this, 'flag_cancelled_advance_for_review' ), 10, 1 );
 
 		// Admin reconciliation: manually mark an advance as paid (e.g. the
 		// customer paid outside the gateway, or the gateway never recorded a
@@ -418,5 +432,60 @@ class Gateway_Bridge {
 			'pending',
 			__( 'Moved back to pending: this order cannot be processing or completed while its COD advance is unpaid.', 'cod-shield' )
 		);
+	}
+
+	/**
+	 * Protect awaiting-advance orders from WC core's "cancel unpaid orders".
+	 *
+	 * The unpaid-order canceller (woocommerce_cancel_unpaid_orders) only
+	 * targets pending orders — exactly the state an awaiting-advance order is
+	 * in while the gateway charge is in flight, or captured but not yet
+	 * finalized. Cancelling there would strand a captured advance without a
+	 * refund.
+	 *
+	 * @param bool            $cancel Whether core would cancel the order.
+	 * @param \WC_Order|mixed $order  Order under consideration.
+	 * @return bool
+	 */
+	public function prevent_auto_cancel_of_advance_order( $cancel, $order ) {
+		if ( ! $cancel || ! is_a( $order, '\WC_Order' ) ) {
+			return $cancel;
+		}
+
+		// Awaiting advance (charge initiated or captured but not finalized) —
+		// exempt from the unpaid-order canceller.
+		if ( 'yes' === $order->get_meta( Core::META_AWAITING ) ) {
+			return false;
+		}
+
+		return $cancel;
+	}
+
+	/**
+	 * Flag cancelled orders whose advance may have been captured.
+	 *
+	 * WC core can cancel an order for many reasons; the charge may still have
+	 * gone through (captured but not finalized, e.g. webhook latency or a
+	 * lost redirect). Surface such orders for manual reconciliation instead
+	 * of silently dropping the collected money.
+	 *
+	 * @param int $order_id Order id.
+	 * @return void
+	 */
+	public function flag_cancelled_advance_for_review( $order_id ) {
+		$order = wc_get_order( $order_id );
+		if ( ! $order ) {
+			return;
+		}
+
+		// Charge may have been captured even though the order was cancelled.
+		if ( $order->get_transaction_id() || 'yes' === $order->get_meta( Core::META_AWAITING ) ) {
+			$order->add_order_note(
+				__( 'ADVANCE RECONCILIATION REQUIRED: this order was cancelled while an advance payment may have been captured. Verify with the gateway and refund if charged.', 'cod-shield' )
+			);
+			// HPOS-safe: meta is always written through WC_Order CRUD.
+			$order->update_meta_data( Core::META_AWAITING, 'review' );
+			$order->save();
+		}
 	}
 }

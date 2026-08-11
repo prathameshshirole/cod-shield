@@ -91,6 +91,96 @@ class Cod_Shield_Lifecycle_Test extends WP_UnitTestCase {
 		$this->assertSame( 100.0, (float) $order->get_total() );
 	}
 
+	#[TestDox( 'Order-pay retry is refused once a charge may already be captured' )]
+	public function test_retry_refused_after_charge_initiated(): void {
+		$order = $this->create_advance_order();
+		$this->seed_awaiting_meta( $order );
+		$order->set_transaction_id( 'txn-stub-001' );
+		$order->save();
+
+		$result = ( new Gateway_COD_Advance() )->process_payment( $order->get_id() );
+		$order  = $this->reload_order( $order->get_id() );
+
+		$this->assertSame( 'failure', $result['result'] );
+		// Refusal is a no-op: total, awaiting state and txn are untouched.
+		$this->assertSame( 100.0, (float) $order->get_total() );
+		$this->assertSame( 'yes', $order->get_meta( Core::META_AWAITING ) );
+		$this->assertSame( 'txn-stub-001', $order->get_transaction_id() );
+	}
+
+	#[TestDox( 'Order-pay retry is refused while an order is flagged for advance review' )]
+	public function test_retry_refused_for_review_flagged_order(): void {
+		$order = $this->create_advance_order();
+		$this->seed_awaiting_meta( $order );
+		$order->update_meta_data( Core::META_AWAITING, 'review' );
+		$order->save();
+
+		$result = ( new Gateway_COD_Advance() )->process_payment( $order->get_id() );
+		$order  = $this->reload_order( $order->get_id() );
+
+		$this->assertSame( 'failure', $result['result'] );
+		$this->assertSame( 'review', $order->get_meta( Core::META_AWAITING ) );
+		$this->assertSame( 100.0, (float) $order->get_total() );
+	}
+
+	#[TestDox( 'Awaiting-advance orders are exempt from the unpaid-order canceller' )]
+	public function test_auto_cancel_guard_exempts_awaiting_advance(): void {
+		$bridge = $this->bridge();
+
+		$order = $this->create_advance_order();
+		$this->seed_awaiting_meta( $order );
+		$this->assertFalse( $bridge->prevent_auto_cancel_of_advance_order( true, $order ) );
+
+		// Orders that are not awaiting an advance, and non-order values, pass
+		// the canceller through unchanged.
+		$plain = $this->create_advance_order();
+		$this->assertTrue( $bridge->prevent_auto_cancel_of_advance_order( true, $plain ) );
+		$this->assertFalse( $bridge->prevent_auto_cancel_of_advance_order( false, $plain ) );
+		$this->assertTrue( $bridge->prevent_auto_cancel_of_advance_order( true, null ) );
+	}
+
+	#[TestDox( 'A cancelled order with a captured advance is flagged for review' )]
+	public function test_cancelled_advance_with_txn_is_flagged_for_review(): void {
+		$order = $this->create_advance_order();
+		$this->seed_awaiting_meta( $order );
+		$order->set_transaction_id( 'txn-stub-001' );
+		$order->set_status( 'cancelled' );
+		$order->save();
+
+		$this->bridge()->flag_cancelled_advance_for_review( $order->get_id() );
+		$order = $this->reload_order( $order->get_id() );
+
+		$this->assertSame( 'review', $order->get_meta( Core::META_AWAITING ) );
+		$this->assertStringContainsString( 'ADVANCE RECONCILIATION REQUIRED', $this->order_notes( $order ) );
+	}
+
+	#[TestDox( 'A cancelled order awaiting an in-flight charge is flagged for review' )]
+	public function test_cancelled_order_with_inflight_charge_is_flagged(): void {
+		$order = $this->create_advance_order();
+		$this->seed_awaiting_meta( $order );
+		$order->set_status( 'cancelled' );
+		$order->save();
+
+		$this->bridge()->flag_cancelled_advance_for_review( $order->get_id() );
+		$order = $this->reload_order( $order->get_id() );
+
+		$this->assertSame( 'review', $order->get_meta( Core::META_AWAITING ) );
+		$this->assertStringContainsString( 'ADVANCE RECONCILIATION REQUIRED', $this->order_notes( $order ) );
+	}
+
+	#[TestDox( 'Cancelling an order that never started an advance is left alone' )]
+	public function test_cancel_without_advance_activity_is_not_flagged(): void {
+		$order = $this->create_advance_order();
+		$order->set_status( 'cancelled' );
+		$order->save();
+
+		$this->bridge()->flag_cancelled_advance_for_review( $order->get_id() );
+		$order = $this->reload_order( $order->get_id() );
+
+		$this->assertSame( '', $order->get_meta( Core::META_AWAITING ) );
+		$this->assertStringNotContainsString( 'ADVANCE RECONCILIATION REQUIRED', $this->order_notes( $order ) );
+	}
+
 	#[TestDox( 'Overcharge protection retains the online gateway and clears the COD remainder' )]
 	public function test_overcharge_guard_prevents_double_collection(): void {
 		$this->stub_gateway->charge_override = 100.0;

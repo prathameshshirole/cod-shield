@@ -30,6 +30,7 @@ Cash on Delivery is the dominant payment method in Indian e-commerce but carries
 * **Tested gateway compatibility** — no hard dependency on a specific gateway plugin; verify the selected gateway version with your checkout before going live.
 * **Extra COD fee** — optional advanced fee (flat ₹ or %), with tax support. Checkout Blocks currently applies it during order processing and does not preview a separate fee line before placement.
 * **HPOS + Blocks compatible** — the core advance flow works with High-Performance Order Storage and both the classic shortcode and Cart/Checkout block.
+* **PDF Invoices & Packing Slips compatible** — invoice totals show the advance paid online and the balance due on delivery; a mid-flight invoice can never capture the temporary advance-only total.
 
 **How it works**
 
@@ -73,6 +74,11 @@ Yes. The amount is always calculated and re-validated server-side at order creat
 Yes. CartFlows checkout steps use the native WooCommerce cart, so the advance is calculated from the same total CartFlows shows in the order review. On a CartFlows step the "Place order" button shows the advance (what is charged right now) instead of the full order total, even though CartFlows appends the full total to the button label when its "show price on button" setting is enabled.
 
 == Changelog ==
+
+= 2.0.3 =
+* **Fixed: awaiting-advance orders are no longer auto-cancelled by WooCommerce's "cancel unpaid orders" scheduler.** While the advance charge is in flight (or captured but not yet finalized) the order sits in Pending — exactly what the canceller targets. Cancelling there stranded a captured advance without a refund. Awaiting-advance orders are now exempt, and any order that is cancelled while a charge may have been captured is flagged with an "ADVANCE RECONCILIATION REQUIRED" order note and a review state so the collection is verified with the gateway instead of silently dropped.
+* **Fixed: order-pay retry can no longer double-charge.** If an advance charge was already captured (a transaction id is recorded, or the order is flagged for advance review), retrying the payment is refused with a clear notice instead of initiating a second charge that orphans the first capture. Legitimate retries after a declined or abandoned payment are unaffected.
+* **Added: PDF Invoices & Packing Slips for WooCommerce support.** Invoice totals now show how much of the order was paid online as the COD advance and how much remains due on delivery. A document generated while the charge is still awaiting shows the real order total instead of the temporary advance-only amount. Packing slips are unaffected.
 
 = 2.0.2 =
 * **Changed: renamed to SureOrder.** The new public brand avoids conflicts with other COD Shield products while all legacy technical identifiers remain stable for update, settings and order compatibility.
