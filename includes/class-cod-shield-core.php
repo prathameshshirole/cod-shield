@@ -325,6 +325,29 @@ class Core {
 	}
 
 	/**
+	 * Decide whether Cashfree's return handler should see the original gateway.
+	 *
+	 * Cashfree validates that the order still belongs to its gateway before it
+	 * verifies the payment. Its webhook can arrive first, after SureOrder has
+	 * already converted the paid advance order to COD, so the later browser
+	 * return would otherwise fail with "Cashfree capture error".
+	 *
+	 * @param string $payment_method Stored payment method.
+	 * @param string $gateway_used   Advance gateway recorded by SureOrder.
+	 * @param string $advance_status Advance payment status.
+	 * @param string $api_endpoint   WooCommerce API endpoint.
+	 * @param string $action         Gateway callback action.
+	 * @return bool
+	 */
+	public static function should_expose_cashfree_payment_method( $payment_method, $gateway_used, $advance_status, $api_endpoint, $action ) {
+		return 'cod' === $payment_method
+			&& 'cashfree' === $gateway_used
+			&& 'paid' === $advance_status
+			&& 'cashfree' === $api_endpoint
+			&& 'capture' === $action;
+	}
+
+	/**
 	 * Assess gateway characteristics without requiring a WooCommerce runtime.
 	 *
 	 * Token support by itself is not an incompatibility: some redirect

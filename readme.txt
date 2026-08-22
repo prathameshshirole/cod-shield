@@ -7,7 +7,7 @@ Requires PHP: 8.1
 Requires Plugins: woocommerce
 WC requires at least: 8.0
 WC tested up to: 10.9
-Stable tag: 2.0.2
+Stable tag: 2.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -76,6 +76,7 @@ Yes. CartFlows checkout steps use the native WooCommerce cart, so the advance is
 == Changelog ==
 
 = 2.0.3 =
+* **Fixed: Cashfree no longer shows a capture error when its webhook wins the return race.** When Cashfree confirms the advance by webhook before the customer's browser returns, SureOrder now lets Cashfree finish its authenticated capture callback while keeping the finalized order stored as COD.
 * **Fixed: awaiting-advance orders are no longer auto-cancelled by WooCommerce's "cancel unpaid orders" scheduler.** While the advance charge is in flight (or captured but not yet finalized) the order sits in Pending — exactly what the canceller targets. Cancelling there stranded a captured advance without a refund. Awaiting-advance orders are now exempt, and any order that is cancelled while a charge may have been captured is flagged with an "ADVANCE RECONCILIATION REQUIRED" order note and a review state so the collection is verified with the gateway instead of silently dropped.
 * **Fixed: order-pay retry can no longer double-charge.** If an advance charge was already captured (a transaction id is recorded, or the order is flagged for advance review), retrying the payment is refused with a clear notice instead of initiating a second charge that orphans the first capture. Legitimate retries after a declined or abandoned payment are unaffected.
 * **Added: PDF Invoices & Packing Slips for WooCommerce support.** Invoice totals now show how much of the order was paid online as the COD advance and how much remains due on delivery. A document generated while the charge is still awaiting shows the real order total instead of the temporary advance-only amount. Packing slips are unaffected.
@@ -165,6 +166,9 @@ Yes. CartFlows checkout steps use the native WooCommerce cart, so the advance is
 * Initial release.
 
 == Upgrade Notice ==
+
+= 2.0.3 =
+* Fixes Cashfree webhook/return capture races, prevents advance double-charges and unpaid-order auto-cancellation, and adds PDF invoice support.
 
 = 2.0.2 =
 * Renames the plugin to SureOrder, relicenses it under GNU GPL v2 or later and restores the official Cashfree gateway in the advance gateway selector.

@@ -150,6 +150,28 @@ class GatewaySafetyTest extends TestCase {
 		$this->assertSame( 'checkout_fields_required', $result['code'] );
 	}
 
+	#[TestDox( 'Cashfree capture sees its gateway after webhook-first finalization' )]
+	public function test_cashfree_capture_compatibility_view(): void {
+		$this->assertTrue(
+			Core::should_expose_cashfree_payment_method( 'cod', 'cashfree', 'paid', 'cashfree', 'capture' )
+		);
+	}
+
+	#[TestDox( 'Cashfree compatibility view is limited to its paid capture callback' )]
+	public function test_cashfree_capture_compatibility_view_is_narrowly_scoped(): void {
+		$cases = array(
+			array( 'cashfree', 'cashfree', 'paid', 'cashfree', 'capture' ),
+			array( 'cod', 'razorpay', 'paid', 'cashfree', 'capture' ),
+			array( 'cod', 'cashfree', 'pending', 'cashfree', 'capture' ),
+			array( 'cod', 'cashfree', 'paid', 'other', 'capture' ),
+			array( 'cod', 'cashfree', 'paid', 'cashfree', 'notify' ),
+		);
+
+		foreach ( $cases as $case ) {
+			$this->assertFalse( Core::should_expose_cashfree_payment_method( ...$case ) );
+		}
+	}
+
 	#[TestDox( 'Matching order components and payable advance are safe' )]
 	public function test_consistent_delegation_amounts_are_safe(): void {
 		$result = Core::assess_delegation_amounts( 100, 100, true, 20, 20 );

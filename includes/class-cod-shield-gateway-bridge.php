@@ -53,6 +53,10 @@ class Gateway_Bridge {
 	 * Hook registration.
 	 */
 	public function __construct() {
+		// Let Cashfree finish a browser-return capture after its webhook has
+		// already finalized the advance and converted the stored method to COD.
+		add_filter( 'woocommerce_order_get_payment_method', array( $this, 'expose_cashfree_payment_method_during_capture' ), 10, 2 );
+
 		// Inject the proxy gateway into the AVAILABLE gateways list only
 		// (never into the full registered list, so it stays out of the admin
 		// gateway settings screen).
@@ -89,6 +93,39 @@ class Gateway_Bridge {
 		// transaction id). Nonce + capability checked in the handler.
 		add_action( 'admin_post_' . Core::NONCE_MANUAL_PAID, array( $this, 'handle_manual_mark_advance_paid' ) );
 		add_action( 'admin_notices', array( $this, 'render_manual_paid_notice' ) );
+	}
+
+	/**
+	 * Present Cashfree as the payment method only inside its capture callback.
+	 *
+	 * The order remains stored as COD. Cashfree still performs its own order-key
+	 * validation immediately after reading this value, so this compatibility
+	 * view does not weaken callback authentication.
+	 *
+	 * @param string    $payment_method Stored payment method.
+	 * @param \WC_Order $order          Order being read.
+	 * @return string
+	 */
+	public function expose_cashfree_payment_method_during_capture( $payment_method, $order ) {
+		if ( ! is_a( $order, '\WC_Order' ) ) {
+			return $payment_method;
+		}
+
+		$api_endpoint = function_exists( 'get_query_var' ) ? sanitize_key( (string) get_query_var( 'wc-api' ) ) : '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only gateway callback routing; Cashfree validates the order key.
+		$action = isset( $_GET['action'] ) ? sanitize_key( wp_unslash( $_GET['action'] ) ) : '';
+
+		if ( Core::should_expose_cashfree_payment_method(
+			(string) $payment_method,
+			(string) $order->get_meta( Core::META_GATEWAY_USED ),
+			(string) $order->get_meta( Core::META_STATUS ),
+			$api_endpoint,
+			$action
+		) ) {
+			return 'cashfree';
+		}
+
+		return $payment_method;
 	}
 
 	/**

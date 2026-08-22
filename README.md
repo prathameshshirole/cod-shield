@@ -6,7 +6,7 @@
 
 > Reduce **COD RTO** (Return to Origin) by collecting a **partial advance payment** through one compatible WooCommerce payment gateway — without forcing customers to pay in full.
 
-[![Version](https://img.shields.io/badge/version-2.0.2-blue.svg)](https://wordpress.org/plugins/cod-shield/)
+[![Version](https://img.shields.io/badge/version-2.0.3-blue.svg)](https://wordpress.org/plugins/cod-shield/)
 [![WordPress](https://img.shields.io/badge/WordPress-6.4%2B-21759b.svg)](https://wordpress.org/plugins/cod-shield/)
 [![WooCommerce](https://img.shields.io/badge/WooCommerce-8.0%2B-96588a.svg)](https://woocommerce.com/)
 [![PHP](https://img.shields.io/badge/PHP-8.1%2B-777bb4.svg)](https://www.php.net/)
@@ -332,6 +332,7 @@ Bug reports and feature requests: use the [issue templates](.github/ISSUE_TEMPLA
 
 See [readme.txt](readme.txt) for the full changelog. Notable recent releases:
 
+- **2.0.3** — Fixed Cashfree webhook/return capture races and hardened advance payment lifecycle handling
 - **2.0.2** — Restored official Cashfree hosted checkout support in the advance gateway selector
 - **2.0.1** — Editable COD title, hardened manual reconciliation, and release quality gates
 - **2.0.0** — Fresh start: GPL licensing, brand-new undistorted logo asset set with reusable generator, community setup (CONTRIBUTING/CODE_OF_CONDUCT/SECURITY)
