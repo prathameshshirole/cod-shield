@@ -25,6 +25,7 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(ROOT, "assets")
 WPORG = os.path.join(ROOT, ".wordpress-org")
+ADMIN_IMAGES = os.path.join(ROOT, "admin", "img")
 MASTER = os.path.join(ASSETS, "logo.png")
 
 NAVY = (29, 59, 95)      # #1d3b5f
@@ -113,8 +114,9 @@ def main() -> None:
     # ---- wp.org source copy ----
     try:
         os.makedirs(WPORG, exist_ok=True)
+        os.makedirs(ADMIN_IMAGES, exist_ok=True)
     except OSError as exc:
-        sys.exit(f"cannot create {WPORG}: {exc}")
+        sys.exit(f"cannot create asset directory: {exc}")
     save_png(src, os.path.join(WPORG, "cod-shield-logo.png"))
 
     # ---- social preview 1280x640 ----
@@ -158,6 +160,8 @@ def main() -> None:
         s = fit(shield, size - 2 * pad)
         icon.paste(s, ((size - s.width) // 2, (size - s.height) // 2))
         save_png(icon, os.path.join(WPORG, f"icon-{size}x{size}.png"))
+        if size == 128:
+            save_png(icon, os.path.join(ADMIN_IMAGES, "icon-128x128.png"))
 
     print("done.")
 

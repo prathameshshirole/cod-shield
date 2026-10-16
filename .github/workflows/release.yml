@@ -24,11 +24,9 @@ jobs:
         run: |
           mkdir -p dist
           # git archive honours .gitattributes export-ignore, so tests/docs/
-          # composer.*/vendor etc. never enter the package.
+          # composer.*/vendor, repository artwork, and build tools never enter
+          # the package.
           git archive --format=zip --prefix=cod-shield/ -o dist/cod-shield.zip HEAD
-          # Strip the WP.org listing artwork and the asset generator from the
-          # package (same as the manual build).
-          zip -d dist/cod-shield.zip 'cod-shield/.wordpress-org/*' 'cod-shield/tools/*'
 
       - name: Verify package
         run: |

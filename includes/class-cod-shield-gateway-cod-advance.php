@@ -81,9 +81,10 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 	 * @return string
 	 */
 	public function get_description() {
-		$core    = Core::instance();
-		$total   = $core->get_cart_total();
-		$advance = $core->calculate_advance( $total );
+		$core     = Core::instance();
+		$total    = $core->get_cart_total();
+		$advance  = $core->calculate_advance( $total );
+		$currency = '';
 
 		// Order-pay endpoint: there is no cart, so read the amounts recorded
 		// on the order when the advance was initiated instead of deriving
@@ -92,12 +93,14 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 			$order_id = absint( get_query_var( 'order-pay' ) );
 			$order    = $order_id ? wc_get_order( $order_id ) : null;
 			if ( $order ) {
+				$currency      = $order->get_currency();
 				$order_advance = (float) $order->get_meta( Core::META_ADVANCE );
 				if ( $order_advance > 0 ) {
 					$advance   = $order_advance;
 					$remaining = (float) $order->get_meta( Core::META_REMAINING );
-					if ( $remaining <= 0 ) {
-						$remaining = max( 0.0, (float) $order->get_total() - $advance );
+					if ( '' === $order->get_meta( Core::META_REMAINING ) ) {
+						$original  = (float) $order->get_meta( Core::META_ORIGINAL_TOTAL );
+						$remaining = max( 0.0, ( $original > 0 ? $original : (float) $order->get_total() ) - $advance );
 					}
 					// Keep the fall-through math below consistent.
 					$total = $advance + $remaining;
@@ -105,21 +108,7 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 			}
 		}
 
-		$message = $core->get_advance_message( $advance, max( 0.0, $total - $advance ) );
-
-		if ( '' !== $message ) {
-			// Wrapped in a highlighted callout (public/css/checkout.css) so the
-			// key commitment — how much is due now — is scanned in a glance.
-			return '<div class="cod-shield-advance-notice">' . wp_kses_post( $message ) . '</div>';
-		}
-
-		// Fall back to a plain explanation when messaging is disabled.
-		return '<div class="cod-shield-advance-notice">' . sprintf(
-			/* translators: 1: advance amount, 2: remaining amount. */
-			__( 'Pay %1$s now, %2$s on delivery (COD).', 'cod-shield' ),
-			wc_price( $advance ),
-			wc_price( max( 0.0, $total - $advance ) )
-		) . '</div>';
+		return $core->get_advance_breakdown( $advance, max( 0.0, $total - $advance ), $currency );
 	}
 
 	/**
@@ -140,7 +129,28 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 		// latency / lost redirect), or the order was cancelled while flagged
 		// for advance reconciliation. Refusing re-initiation prevents the
 		// retry double-charge that orphans the first capture.
-		if ( $order->get_transaction_id() || 'review' === $order->get_meta( Core::META_AWAITING ) ) {
+		$gateway_used = (string) $order->get_meta( Core::META_GATEWAY_USED );
+		if ( Core::payment_attempt_is_in_flight(
+			(string) $order->get_meta( Core::META_AWAITING ),
+			(string) $order->get_meta( Core::META_ATTEMPT_STARTED ),
+			(string) $order->get_transaction_id(),
+			$gateway_used
+		) ) {
+			// WooCommerce can restore the cart total and selected proxy method
+			// before invoking process_payment() on a resumed checkout. Put the
+			// original delegated state back so a delayed webhook can still match
+			// the gateway and finalize against the amount actually charged.
+			$recorded_advance = (float) $order->get_meta( Core::META_ADVANCE );
+			if ( Core::should_restore_in_flight_state(
+				(string) $order->get_meta( Core::META_AWAITING ),
+				(string) $order->get_meta( Core::META_STATUS ),
+				$gateway_used,
+				$recorded_advance
+			) ) {
+				$order->set_total( $recorded_advance );
+				$order->set_payment_method( $gateway_used );
+				$order->save();
+			}
 			wc_add_notice(
 				__( 'An advance payment for this order is already being processed. Please wait for confirmation before retrying.', 'cod-shield' ),
 				'error'
@@ -189,6 +199,8 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 		$order->update_meta_data( Core::META_REMAINING, max( 0.0, $total - $advance ) );
 		$order->update_meta_data( Core::META_STATUS, 'pending' );
 		$order->update_meta_data( Core::META_AWAITING, 'yes' );
+		$order->update_meta_data( Core::META_ATTEMPT_STARTED, 'yes' );
+		$order->update_meta_data( Core::META_ATTEMPT_STARTED_AT, time() );
 		$order->update_meta_data( Core::META_GATEWAY_USED, $gateway->id );
 		$order->save();
 
@@ -266,6 +278,7 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 		$order->set_payment_method_title( $core->get_cod_title() );
 		$order->update_meta_data( Core::META_STATUS, 'failed' );
 		$order->update_meta_data( Core::META_AWAITING, 'no' );
+		$order->update_meta_data( Core::META_ATTEMPT_STARTED, 'no' );
 		$order->save();
 
 		if ( 'block' === $core->get_option( Core::OPT_FAILURE, 'allow' ) ) {

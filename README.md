@@ -6,7 +6,7 @@
 
 > Reduce **COD RTO** (Return to Origin) by collecting a **partial advance payment** through one compatible WooCommerce payment gateway — without forcing customers to pay in full.
 
-[![Version](https://img.shields.io/badge/version-2.0.3-blue.svg)](https://wordpress.org/plugins/cod-shield/)
+[![Version](https://img.shields.io/badge/version-2.0.4-blue.svg)](https://wordpress.org/plugins/cod-shield/)
 [![WordPress](https://img.shields.io/badge/WordPress-6.4%2B-21759b.svg)](https://wordpress.org/plugins/cod-shield/)
 [![WooCommerce](https://img.shields.io/badge/WooCommerce-8.0%2B-96588a.svg)](https://woocommerce.com/)
 [![PHP](https://img.shields.io/badge/PHP-8.1%2B-777bb4.svg)](https://www.php.net/)
@@ -41,7 +41,7 @@ SureOrder makes COD "cost something" upfront **without** forcing customers to pa
 - ✅ **Filter out casual and fake orders** before they ship
 - ✅ **Keep COD conversion high** — customers pay a fraction, not the full price
 - ✅ **Match your storefront language** — customize the COD checkout title
-- ✅ **Use a tested gateway** — choose one enabled gateway that passes the compatibility smoke test for your checkout
+- ✅ **Use a supported gateway** — choose the official Cashfree or Razorpay gateway, then run the compatibility smoke test for its installed version
 - ✅ **Ship with confidence** — the remaining balance is still collected on delivery
 
 ---
@@ -73,17 +73,30 @@ SureOrder makes COD "cost something" upfront **without** forcing customers to pa
 - **Off by default**, so activation never changes your existing checkout behaviour
 - Optional **maximum order value for COD** and delivery-pincode exclusions for higher-risk orders
 
+### 🚫 High-Priority COD Exclusions
+
+Exclude COD with surgical precision — any matching rule hides COD **and** the advance proxy with a clear, customer-facing reason shown in both classic checkout and Checkout Blocks:
+
+- **Shipping zones** — zone IDs; the chosen shipping method's zone excludes COD
+- **Shipping methods** — by rate ID (`local_pickup`) or a specific instance (`flat_rate:23`); multiple packages fail if any selected package matches
+- **Products** — product or variation IDs; a variation matches its own ID *and* its parent product's data
+- **Product categories** and **shipping classes** — term IDs applied to the parent product
+
+The proxy also mirrors WooCommerce's own native COD availability: when native COD is removed by the COD gateway's *enable for methods* shipping restriction, virtual-cart rules, or is disabled outright, the advance proxy never resurrects it. Online payment methods are never affected by COD exclusions.
+
 ### 💬 Transparent Checkout Messaging
 
 - Admin-editable messages explaining the advance — or that COD is risk-free
 - Placeholder-driven: `{advance_amount}`, `{remaining_amount}`, `{percentage}`
+- Clear **Pay now** and **Pay on delivery** rows explain that the advance is part of the order total
+- Checkout Blocks refreshes the payment split when cart totals change
 - Works on both classic and block checkout
 
 ### 🧾 Extra COD Fee
 
 - Charge an additional fee on COD orders (flat ₹ or %)
 - On/off toggle with **tax rate and tax-class support**
-- Advanced feature: classic checkout can show the fee before placement; Checkout Blocks currently applies it during order processing and does not preview a separate fee line before placement
+- The selected COD method adds the fee and configured tax to checkout totals before placement in both classic checkout and Checkout Blocks
 
 ### 👀 Full Admin Visibility
 
@@ -175,7 +188,9 @@ All settings live under **WooCommerce → Settings → SureOrder**.
 
 1. **Enable COD** on the Setup tab. WooCommerce's native COD gateway must also remain enabled.
 2. **Choose Fixed Amount or Percentage** and enter the amount.
-3. **Choose one compatible gateway** that is enabled in WooCommerce and has passed the release smoke test for your checkout.
+3. **Choose one supported gateway** that is enabled in WooCommerce, then run the release smoke test for its installed version and checkout type.
+
+Fresh installations leave the optional minimum and maximum advance limits disabled, so the fixed amount or percentage is applied literally. Existing saved limits are preserved.
 
 If an advance is required but no usable collection gateway is configured, SureOrder fails closed: it hides native COD instead of allowing the customer to place an unprotected COD order. Other payment methods remain available.
 
@@ -185,13 +200,13 @@ The remaining controls are optional:
 
 | Section | What it controls |
 | --------- | ------------------ |
-| **Setup** | COD switch, advance mode/amount and one compatible gateway |
+| **Setup** | COD switch, advance mode/amount and one supported gateway |
 | **Advanced Rules** | Advance caps, COD order-value limits and excluded delivery pincodes |
 | **COD Fee** | Fee toggle, type, amount/percentage, tax toggle + tax class |
 | **Messages** | COD title, advance/risk-free text and email summary |
-| **Order Handling** | Behaviour on advance failure (keep pending / cancel) and post-payment status |
+| **Order Handling** | Behaviour on advance failure (keep pending / cancel), post-payment status and stale-attempt interval |
 
-The extra COD fee is optional. In Checkout Blocks it is currently applied during order processing and is not previewed as a separate fee line before the order is placed.
+The extra COD fee is optional. Both checkout types show the fee and configured tax before placement; switching to another payment method removes the COD fee.
 
 ---
 
@@ -203,6 +218,34 @@ The extra COD fee is optional. In Checkout Blocks it is currently applied during
 - **Advance-only retry** — customers with an unpaid advance can only retry the advance on the pay-for-order page, never skip it by paying the full amount.
 - **Manual reconciliation** — stuck orders can be finalized from the order screen via a capability + nonce-protected "Mark advance as paid" action.
 - **Idempotent finalization** — the money-moving lifecycle is protected against double-execution.
+
+### Delayed payments and safe recovery
+
+SureOrder never infers payment from an order's age, gateway order reference or status change. Automatic finalization requires a nonempty gateway transaction ID and, when an advance gateway was recorded on the order, a payment method matching that gateway. The explicit **Mark advance as paid (manual)** action is an administrator's assertion that the advance was collected; verify collection before using it.
+
+If the gateway saves its transaction ID after the original payment/status event, an after-save observer queues a catch-up check. Action Scheduler runs it when available, with WP-Cron as fallback. The check reloads the order and uses the same guarded finalizer. It needs a working scheduler and cannot recover a transaction the gateway never writes to WooCommerce. Duplicate saves and callbacks do not repeat a successful finalization.
+
+Check order notes and **WooCommerce → Status → Logs** (source `cod-shield`) for finalization diagnostics. Consecutive identical rejections are suppressed. These diagnostics contain operational order/gateway identifiers and status, excluding customer details, payment tokens and transaction IDs.
+
+| Outcome code | Meaning and response |
+| --- | --- |
+| `missing_transaction` | Awaiting a gateway transaction ID; verify the payment in the gateway dashboard before fulfilment. |
+| `gateway_mismatch` | The stored payment method differs from the recorded advance gateway (checked only when a gateway was recorded); reconcile the payment and gateway before fulfilment. |
+| `invalid_total` | No valid order total can be restored; review totals and payment evidence. |
+| `not_awaiting` / `ready` | Internal no-action / eligible-to-finalize outcomes; these do not generate rejection notes. `ready` still goes through the overcharge guard. |
+
+The order's advance metabox also shows an **Attempt state**:
+
+| State | Recovery policy |
+| --- | --- |
+| `active` | Waiting for gateway confirmation; retry remains blocked. Future timestamps remain active. |
+| `stale` | The configured interval elapsed; verify the original attempt with the gateway before releasing it. |
+| `legacy_unknown` | No valid attempt marker/timestamp; reconcile manually. Age never automatically releases a legacy attempt. |
+| `captured` | Payment is recorded locally; retry release is blocked. This label does not independently verify capture with the gateway. |
+| `review` | Reconciliation is required; retry release is blocked. |
+| `inactive` | No active attempt is recorded. |
+
+Set **Order Handling → Stale advance attempt interval (minutes)** as needed (default 60; allowed range 15–10,080 minutes). Elapsed time alone never releases an attempt. After confirming with the gateway that no money was collected, an authorized order editor can use **Release stale attempt for retry** on a pending/failed order with a pending/failed advance and valid saved totals. The action checks the order-specific permission and nonce, refuses transaction-bearing/review/legacy attempts, restores the full total and advance proxy, and records an audit note. The advance remains unpaid. Release does not cancel the original gateway attempt; account for delayed confirmation before permitting another charge.
 
 ---
 
@@ -258,9 +301,11 @@ composer install            # dev tools (PHPUnit, PHPCS)
 
 | Command | Description |
 | --------- | ------------- |
-| `composer test` | PHPUnit unit tests + lifecycle integration harness (no database required) |
+| `composer test` | PHPUnit unit tests + standalone lifecycle, checkout and breakdown harnesses (no database required) |
 | `composer test:standalone` | Calculation engines via plain-PHP runner (no composer needed) |
-| `composer test:lifecycle` | Money-lifecycle harness: finalization, overcharge guard, idempotency (24 assertions) |
+| `composer test:lifecycle` | Standalone money-lifecycle harness: finalization, catch-up, recovery, overcharge guard and idempotency |
+| `composer test:checkout-js` | Checkout Blocks payment-method JavaScript tests |
+| `composer test:integration` | Real WordPress/WooCommerce lifecycle tests; requires the [integration environment](tests/integration/README.md), run for both legacy and HPOS storage |
 | `composer lint` | PHPCS (WordPress coding standards) |
 | `composer lint:fix` | Auto-fix PHPCS violations |
 | `composer pot` | Regenerate `languages/cod-shield.pot` (requires wp-cli) |
@@ -332,6 +377,7 @@ Bug reports and feature requests: use the [issue templates](.github/ISSUE_TEMPLA
 
 See [readme.txt](readme.txt) for the full changelog. Notable recent releases:
 
+- **2.0.4** — Added explicit safeguards for official Razorpay automatic-capture checkout compatibility
 - **2.0.3** — Fixed Cashfree webhook/return capture races and hardened advance payment lifecycle handling
 - **2.0.2** — Restored official Cashfree hosted checkout support in the advance gateway selector
 - **2.0.1** — Editable COD title, hardened manual reconciliation, and release quality gates

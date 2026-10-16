@@ -52,9 +52,20 @@ class DefaultsTest extends TestCase {
 		$this->assertSame( 'disabled', $defaults[ Core::OPT_MODE ] );
 	}
 
+	public function testAdvanceLimitsDefaultToDisabled() {
+		$defaults = Core::get_defaults();
+		$this->assertSame( 0, $defaults[ Core::OPT_MIN ] );
+		$this->assertSame( 0, $defaults[ Core::OPT_MAX ] );
+	}
+
 	public function testEligibilityRulesDefaultToDisabled() {
 		$defaults = Core::get_defaults();
 		$this->assertSame( 0, $defaults[ Eligibility::OPT_MAXIMUM ] );
 		$this->assertSame( '', $defaults[ Eligibility::OPT_EXCLUDED_PINCODES ] );
+		$this->assertSame( '', $defaults[ Eligibility::OPT_EXCLUDED_SHIPPING_METHODS ] );
+		$this->assertSame( '', $defaults[ Eligibility::OPT_EXCLUDED_PRODUCTS ] );
+		$this->assertSame( '', $defaults[ Eligibility::OPT_EXCLUDED_CATEGORIES ] );
+		$this->assertSame( '', $defaults[ Eligibility::OPT_EXCLUDED_SHIPPING_CLASSES ] );
+		$this->assertSame( array(), Eligibility::normalize_id_list( $defaults[ Eligibility::OPT_EXCLUDED_PRODUCTS ] ) );
 	}
 }

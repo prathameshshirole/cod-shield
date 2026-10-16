@@ -1,7 +1,6 @@
 <?php
 /**
- * AJAX endpoints and checkout script enqueue for the live risk-free message
- * on the classic shortcode checkout.
+ * Checkout styles and a legacy display-only advance endpoint.
  *
  * The AJAX response is display-only: the authoritative amount is always
  * re-calculated server-side at order creation / payment time.
@@ -29,7 +28,7 @@ class Ajax {
 	}
 
 	/**
-	 * Enqueue the checkout script on the classic checkout page.
+	 * Enqueue checkout styles for classic and block checkout.
 	 *
 	 * @return void
 	 */
@@ -43,38 +42,12 @@ class Ajax {
 			return;
 		}
 
-		wp_enqueue_script(
-			'cod-shield-checkout',
-			COD_SHIELD_URL . 'public/js/checkout.js',
-			array( 'jquery' ),
-			COD_SHIELD_VERSION,
-			true
-		);
-
-		// Frontend checkout styles: advance-notice callout and the risk-free
-		// info box. Enqueued here (wp_enqueue_scripts + is_checkout()) so it
-		// loads on both the classic and the block checkout.
+		// Shared payment breakdown styles for classic and block checkout.
 		wp_enqueue_style(
 			'cod-shield-checkout',
 			COD_SHIELD_URL . 'public/css/checkout.css',
 			array(),
 			COD_SHIELD_VERSION
-		);
-
-		$settings     = $core->all_settings();
-		$free_message = ( 'yes' === $settings['msg_free_enabled'] )
-			? wp_kses_post( (string) $settings['msg_free_text'] )
-			: '';
-
-		wp_localize_script(
-			'cod-shield-checkout',
-			'codShieldCheckout',
-			array(
-				'ajaxUrl'     => admin_url( 'admin-ajax.php' ),
-				'nonce'       => wp_create_nonce( Core::NONCE_ACTION ),
-				'mode'        => $settings['mode'],
-				'freeMessage' => $free_message,
-			)
 		);
 	}
 
@@ -86,19 +59,23 @@ class Ajax {
 	public function get_advance() {
 		check_ajax_referer( Core::NONCE_ACTION, 'nonce' );
 
-		$core    = Core::instance();
-		$total   = $core->get_cart_total();
-		$advance = $core->calculate_advance( $total );
+		$core        = Core::instance();
+		$total       = $core->get_cart_total();
+		$advance     = $core->calculate_advance( $total );
+		$eligibility = Eligibility::evaluate_current_cart();
 
 		wp_send_json_success(
 			array(
-				'total'         => $total,
-				'advance'       => $advance,
-				'remaining'     => max( 0.0, $total - $advance ),
-				'required'      => $advance > 0,
-				'available'     => ! $core->is_below_cod_minimum( $total ),
-				'advanceHtml'   => wc_price( $advance ),
-				'remainingHtml' => wc_price( max( 0.0, $total - $advance ) ),
+				'total'                     => $total,
+				'advance'                   => $advance,
+				'remaining'                 => max( 0.0, $total - $advance ),
+				'required'                  => $advance > 0,
+				'available'                 => ! $core->is_below_cod_minimum( $total ),
+				'advanceHtml'               => wc_price( $advance ),
+				'remainingHtml'             => wc_price( max( 0.0, $total - $advance ) ),
+				'cod_eligible'              => $eligibility['eligible'],
+				'cod_ineligibility_code'    => $eligibility['code'],
+				'cod_ineligibility_message' => $eligibility['message'],
 			)
 		);
 	}

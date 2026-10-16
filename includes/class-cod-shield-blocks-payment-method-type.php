@@ -43,18 +43,14 @@ class Blocks_Payment_Method_Type extends \Automattic\WooCommerce\Blocks\Payments
 	}
 
 	/**
-	 * Active only when the advance flow is operational for the current cart
-	 * AND the cart qualifies for Cash on Delivery (shipping rules, no
-	 * subscriptions).
+	 * Load checkout synchronization when COD is enabled. Cart-specific
+	 * availability is evaluated from live Store API extension data.
 	 *
 	 * @return bool
 	 */
 	public function is_active() {
 		$core = Core::instance();
-		return $core->native_cod_enabled()
-			&& $core->advance_flow_active()
-			&& $core->cart_qualifies_for_cod()
-			&& null === Eligibility::get_current_ineligibility_reason();
+		return $core->cod_enabled() && $core->native_cod_enabled();
 	}
 
 	/**
@@ -66,10 +62,11 @@ class Blocks_Payment_Method_Type extends \Automattic\WooCommerce\Blocks\Payments
 		wp_register_script(
 			'wc-payment-method-cod-shield-advance',
 			COD_SHIELD_URL . 'public/js/blocks/payment-method.js',
-			array( 'wc-blocks-registry', 'wc-settings', 'wp-element' ),
+			array( 'wc-blocks-registry', 'wc-settings', 'wc-blocks-data-store', 'wc-blocks-checkout', 'wp-element', 'wp-data', 'wp-i18n', 'wp-notices' ),
 			COD_SHIELD_VERSION,
 			true
 		);
+		wp_set_script_translations( 'wc-payment-method-cod-shield-advance', 'cod-shield', COD_SHIELD_PATH . 'languages' );
 		return array( 'wc-payment-method-cod-shield-advance' );
 	}
 
@@ -79,30 +76,12 @@ class Blocks_Payment_Method_Type extends \Automattic\WooCommerce\Blocks\Payments
 	 * @return array<string,mixed>
 	 */
 	public function get_payment_method_data() {
-		$core     = Core::instance();
-		$settings = $core->all_settings();
+		$core = Core::instance();
 
-		// Mirror the order-time math: on the block checkout the extra COD fee is
-		// applied to the order right before payment (see
-		// Checkout::maybe_add_cod_fee_to_order), so the total used for the
-		// message includes it — otherwise the displayed advance could drift from
-		// the charged amount. Classic checkout is already consistent (the fee is
-		// in the cart once COD is selected).
-		$total = $core->get_cart_total();
-		if ( 'yes' === ( $settings['fee_enabled'] ?? 'no' ) ) {
-			$total += $core->calculate_fee( $total );
-		}
+		$total     = $core->get_cart_total();
 		$advance   = $core->calculate_advance( $total );
 		$remaining = max( 0.0, $total - $advance );
-
-		// The message is admin-configurable; sanitise it server-side before it
-		// is injected into the block checkout via dangerouslySetInnerHTML.
-		$message = wp_kses_post( (string) $core->get_advance_message( $advance, $remaining ) );
-		if ( '' !== $message ) {
-			// Same highlighted callout as the classic checkout
-			// (public/css/checkout.css) so both checkouts look identical.
-			$message = '<div class="cod-shield-advance-notice">' . $message . '</div>';
-		}
+		$message   = $core->get_advance_breakdown( $advance, $remaining );
 
 		return array(
 			'gateway_id'      => Core::GATEWAY_ID,

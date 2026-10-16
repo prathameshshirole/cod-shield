@@ -25,3 +25,9 @@ Thumbs.db
 .mcp.json
 reviews/
 .agents/skills/cashfree-skills/
+
+# Agent session artifacts
+.claude/
+.superpowers/
+codex-session-*.md
+skills-lock.json

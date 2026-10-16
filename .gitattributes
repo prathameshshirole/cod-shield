@@ -4,8 +4,10 @@
 # Files to exclude from WordPress.org SVN releases
 /.github          export-ignore
 /.vscode          export-ignore
+/.wordpress-org   export-ignore
 /tests            export-ignore
 /bin              export-ignore
+/tools            export-ignore
 /phpcs.xml.dist   export-ignore
 /phpunit.xml.dist export-ignore
 /phpunit-integration.xml.dist export-ignore
@@ -18,5 +20,4 @@
 /SECURITY.md        export-ignore
 /AGENTS.md          export-ignore
 /docs               export-ignore
-/AUDIT.md           export-ignore
 /assets             export-ignore

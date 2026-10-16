@@ -47,12 +47,13 @@ Store admin running a WooCommerce store with COD as a primary payment method, wa
 - **Percentage**: a % of cart/order total (e.g. 10%), with:
   - Optional **minimum advance amount** (floor, e.g. never less than ₹49).
   - Optional **maximum advance amount** (cap, e.g. never more than ₹999).
+  - Both limits default to `0` (off) on fresh installations so fixed and percentage values are literal unless the merchant opts into a cap or floor. Existing saved limits are never overwritten.
 - Optional **Minimum order value for COD** (off by default): orders below it cannot choose COD at all; at/above it, advance collection applies.
 - Advance amount is calculated server-side at checkout (never trust client-side JS) and re-validated on order creation.
 
 ### 5.3 Compatible Gateway Delegation for Advance Collection
 
-- Admin selects **one existing enabled gateway** to collect the advance.
+- Admin selects **one explicitly supported, enabled gateway** to collect the advance. Core support is limited to the official Cashfree and Razorpay gateway classes; extensions may opt in additional tested ID/class pairs with `cod_shield_supported_gateway_classes`.
 - Appearing in the selector is not proof of compatibility. The selected gateway version must pass the compatibility matrix in `release-smoke-test.md` for every checkout type the store uses.
 - Checkout flow when COD + advance is active:
   1. Customer selects COD at checkout.
@@ -65,8 +66,8 @@ Store admin running a WooCommerce store with COD as a primary payment method, wa
 
 ### 5.4 Checkout Messaging (COD Messaging)
 
-- The **advance notice** renders **under the COD payment method radio, inside the payment box** (payment method description): e.g. *"Pay ₹99 now, ₹943 on delivery (COD)."* It is deliberately **not** repeated in a box above the payment section.
-- The **risk-free message** (advance disabled while COD remains eligible) renders in a small info box directly **above the payment methods section**: e.g. *"Cash on Delivery available — no advance payment required."* Orders below **Minimum order value for COD** do not see this message because COD is unavailable.
+- The **advance notice** renders **under the COD payment method radio, inside the payment box**, as separate **Pay now** and **Pay on delivery** rows. It explains that the advance is part of the order total and preserves custom merchant instructions.
+- The **risk-free message** (advance disabled while COD remains eligible) renders inside the selected native COD description on classic checkout: e.g. *"Cash on Delivery available — no advance payment required."* Orders below **Minimum order value for COD** do not see this message because COD is unavailable.
 - Both messages are **admin-editable text** (with `{advance_amount}`, `{remaining_amount}`, `{percentage}` placeholders) and each has its **own on/off toggle** — admin can disable either message independently without disabling the underlying logic.
 - Messaging is written for Indian ecommerce shoppers: the COD label reads "Cash on delivery (COD)" and the advance notice states simply *"Pay X now, Y on delivery (COD)."*
 - Messaging renders via the payment method description hook / a lightweight checkout script — no page builder dependency.
@@ -103,7 +104,7 @@ The settings page must warn that an unusable gateway configuration hides COD whe
 ## 6. User Flows
 
 **Flow A — Standard COD, no advance (advance disabled):**
-Checkout → select COD → risk-free message shows above the payment box → place order → standard WooCommerce COD order created.
+Checkout → select COD → risk-free message shows inside the COD payment box → place order → standard WooCommerce COD order created.
 
 **Flow B — COD with advance required:**
 Checkout → select COD → advance notice shows under the COD option ("Pay ₹99 now, ₹943 on delivery (COD)") → place order → redirected to the selected compatible gateway for advance amount only → payment success → order created as COD with advance-paid meta, order note logged → thank-you page confirms both amounts.
@@ -184,7 +185,7 @@ This single function is called both to render the checkout preview (via AJAX/JS 
 - Works alongside WooCommerce Blocks checkout (`checkout-block`) AND legacy shortcode checkout — messaging must be registered via both the classic hook system and a Blocks-compatible integration (`IntegrationInterface` for the Checkout block).
 - Does not hard-depend on a specific gateway plugin, but this is not a universal-compatibility claim. The selected gateway must preserve the temporary advance total, accept the delegated payment flow and record a transaction ID.
 - A gateway is considered compatible only for the tested combination of gateway plugin version, WooCommerce version, storage mode and checkout type recorded in `release-smoke-test.md`.
-- The core advance flow supports classic checkout and Checkout Blocks. The optional extra COD fee is currently applied during Store API order processing and is not previewed as a separate fee line in Checkout Blocks before placement.
+- The core advance flow supports classic checkout and Checkout Blocks. The optional extra COD fee and configured tax appear in cart totals before placement in both checkout types. Checkout Blocks synchronizes the selected payment method through a Store API cart update and blocks submission while payment totals are stale or a refresh has failed.
 - PHP 8.1+, WooCommerce 8.0+.
 
 ---

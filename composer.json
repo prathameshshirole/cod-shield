@@ -32,10 +32,12 @@
         }
     },
     "scripts": {
-        "test": "phpunit && php tests/run-lifecycle.php",
+        "test": "phpunit && php tests/run-lifecycle.php && php tests/run-checkout.php && php tests/run-breakdown.php",
+        "test:all": "@test && @test:integration",
         "test:integration": "phpunit -c phpunit-integration.xml.dist",
         "test:standalone": "php tests/run-tests.php",
         "test:lifecycle": "php tests/run-lifecycle.php",
+        "test:checkout-js": "node tests/js/blocks-payment-method.test.js",
         "lint": "phpcs",
         "lint:fix": "phpcbf",
         "pot": "wp i18n make-pot . languages/cod-shield.pot --slug=cod-shield --domain=cod-shield"

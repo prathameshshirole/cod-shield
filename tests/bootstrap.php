@@ -29,5 +29,17 @@ if ( ! function_exists( '__' ) ) {
 	}
 }
 
+if ( ! function_exists( 'wc_price' ) ) {
+	/**
+	 * Deterministic price-format shim for unit tests.
+	 *
+	 * @param float $value Amount.
+	 * @return string
+	 */
+	function wc_price( $value ) {
+		return '$' . number_format( (float) $value, 2 );
+	}
+}
+
 require_once dirname( __DIR__ ) . '/includes/class-cod-shield-core.php';
 require_once dirname( __DIR__ ) . '/includes/class-cod-shield-eligibility.php';

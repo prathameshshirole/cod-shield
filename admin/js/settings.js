@@ -4,10 +4,8 @@
 (( $ ) => {
 	const syncAdvanceFields = () => {
 		const mode = $( "#cod_shield_advance_mode" ).val();
-		$( "#cod_shield_advance_fixed" ).closest( "tr" ).toggle( "fixed" === mode );
-		$( "#cod_shield_advance_percentage" )
-			.closest( "tr" )
-			.toggle( "percentage" === mode );
+		$( ".cod-shield-fixed-field" ).toggle( "fixed" === mode );
+		$( ".cod-shield-percentage-field" ).toggle( "percentage" === mode );
 	};
 
 	$( () => {

@@ -44,12 +44,23 @@ class SettingsSetupUxTest extends TestCase {
 		$source = $this->settings_source();
 
 		$this->assertStringContainsString( "'type'     => 'cod_shield_gateway_select'", $source );
-		$this->assertStringContainsString( "__( 'Select a tested gateway…', 'cod-shield' )", $source );
+		$this->assertStringContainsString( "__( 'Select a supported gateway…', 'cod-shield' )", $source );
 		$this->assertStringNotContainsString( "'type'     => 'multiselect'", $source );
 		$this->assertStringContainsString( '$candidates = is_array( $raw_value ) ? $raw_value : array( $raw_value );', $source );
 		$this->assertStringContainsString( 'return array( $gateway_id );', $source );
 		$this->assertStringContainsString( 'Core::assess_gateway_compatibility(', $source );
-		$this->assertStringContainsString( "'gateway_class' => get_class( \$gateway )", $source );
+		$this->assertStringContainsString( "'gateway_class'             => get_class( \$gateway )", $source );
+		$this->assertMatchesRegularExpression( "/'payment_action'\\s+=>/", $source );
+		$this->assertMatchesRegularExpression( "/'route_enabled'\\s+=>/", $source );
+	}
+
+	public function test_mode_specific_amount_fields_have_distinct_rows(): void {
+		$source = $this->settings_source();
+		$script = file_get_contents( dirname( __DIR__, 2 ) . '/admin/js/settings.js' );
+
+		$this->assertStringContainsString( "'row_class'         => 'cod-shield-setup-subfield cod-shield-fixed-field'", $source );
+		$this->assertStringContainsString( "'row_class'         => 'cod-shield-setup-subfield cod-shield-percentage-field'", $source );
+		$this->assertStringContainsString( '#cod_shield_advance_mode', $script );
 	}
 
 	#[TestDox( 'Invalid native COD and advance gateway configurations display warnings' )]

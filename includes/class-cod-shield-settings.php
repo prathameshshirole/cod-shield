@@ -35,12 +35,18 @@ class Settings extends \WC_Settings_Page {
 		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_MIN, array( $this, 'sanitize_positive_number' ), 10, 3 );
 		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_MAX, array( $this, 'sanitize_positive_number' ), 10, 3 );
 		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_THRESHOLD, array( $this, 'sanitize_positive_number' ), 10, 3 );
+		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_STALE_ATTEMPT_MINUTES, array( $this, 'sanitize_stale_attempt_minutes' ), 10, 3 );
 		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_GATEWAYS, array( $this, 'sanitize_gateways' ), 10, 3 );
 		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_FEE_AMOUNT, array( $this, 'sanitize_positive_number' ), 10, 3 );
 		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_FEE_PERCENTAGE, array( $this, 'sanitize_percentage' ), 10, 3 );
 		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_FEE_TAX_CLASS, array( $this, 'sanitize_tax_class' ), 10, 3 );
 		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Eligibility::OPT_MAXIMUM, array( $this, 'sanitize_positive_number' ), 10, 3 );
 		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Eligibility::OPT_EXCLUDED_PINCODES, array( $this, 'sanitize_pincode_rules' ), 10, 3 );
+		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Eligibility::OPT_EXCLUDED_SHIPPING_ZONES, array( $this, 'sanitize_id_list_field' ), 10, 3 );
+		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Eligibility::OPT_EXCLUDED_SHIPPING_METHODS, array( $this, 'sanitize_shipping_method_list_field' ), 10, 3 );
+		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Eligibility::OPT_EXCLUDED_PRODUCTS, array( $this, 'sanitize_id_list_field' ), 10, 3 );
+		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Eligibility::OPT_EXCLUDED_CATEGORIES, array( $this, 'sanitize_id_list_field' ), 10, 3 );
+		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Eligibility::OPT_EXCLUDED_SHIPPING_CLASSES, array( $this, 'sanitize_id_list_field' ), 10, 3 );
 
 		add_action( 'woocommerce_admin_field_cod_shield_gateway_select', array( $this, 'handle_gateway_select_field' ) );
 		add_action( 'woocommerce_admin_field_cod_shield_configuration_status', array( $this, 'handle_configuration_status_field' ) );
@@ -137,7 +143,7 @@ class Settings extends \WC_Settings_Page {
 	 */
 	protected function get_settings_for_default_section() {
 		$gateway_options = array(
-			'' => __( 'Select a tested gateway…', 'cod-shield' ),
+			'' => __( 'Select a supported gateway…', 'cod-shield' ),
 		) + $this->get_delegation_gateway_options();
 
 		return array(
@@ -183,7 +189,7 @@ class Settings extends \WC_Settings_Page {
 				'id'                => Core::OPT_FIXED,
 				'type'              => 'number',
 				'default'           => 99,
-				'row_class'         => 'cod-shield-setup-subfield',
+				'row_class'         => 'cod-shield-setup-subfield cod-shield-fixed-field',
 				'custom_attributes' => array(
 					'min'  => '0',
 					'step' => '1',
@@ -195,7 +201,7 @@ class Settings extends \WC_Settings_Page {
 				'id'                => Core::OPT_PERCENTAGE,
 				'type'              => 'number',
 				'default'           => 10,
-				'row_class'         => 'cod-shield-setup-subfield',
+				'row_class'         => 'cod-shield-setup-subfield cod-shield-percentage-field',
 				'custom_attributes' => array(
 					'min'  => '0',
 					'max'  => '100',
@@ -211,7 +217,7 @@ class Settings extends \WC_Settings_Page {
 				'css'      => 'min-width:350px;',
 				'default'  => array(),
 				'options'  => $gateway_options,
-				'desc_tip' => __( 'Only enabled, fieldless redirect candidates are shown. Test the current gateway version before going live.', 'cod-shield' ),
+				'desc_tip' => __( 'Only explicitly supported gateway plugins are shown. Test the installed gateway version before going live.', 'cod-shield' ),
 			),
 			array(
 				'type' => 'sectionend',
@@ -237,7 +243,7 @@ class Settings extends \WC_Settings_Page {
 				'title'             => __( 'Minimum advance', 'cod-shield' ),
 				'id'                => Core::OPT_MIN,
 				'type'              => 'number',
-				'default'           => 49,
+				'default'           => 0,
 				'custom_attributes' => array(
 					'min'  => '0',
 					'step' => '1',
@@ -248,7 +254,7 @@ class Settings extends \WC_Settings_Page {
 				'title'             => __( 'Maximum advance', 'cod-shield' ),
 				'id'                => Core::OPT_MAX,
 				'type'              => 'number',
-				'default'           => 999,
+				'default'           => 0,
 				'custom_attributes' => array(
 					'min'  => '0',
 					'step' => '1',
@@ -297,6 +303,51 @@ class Settings extends \WC_Settings_Page {
 				'css'         => 'min-width:350px; min-height:90px;',
 				'placeholder' => __( '110001, 400*', 'cod-shield' ),
 				'desc'        => __( 'Separate pincodes with commas, spaces, or new lines. Add * at the end to exclude a range, for example 400*.', 'cod-shield' ),
+			),
+			array(
+				'title'       => __( 'Excluded shipping zones', 'cod-shield' ),
+				'id'          => Eligibility::OPT_EXCLUDED_SHIPPING_ZONES,
+				'type'        => 'textarea',
+				'default'     => '',
+				'css'         => 'min-width:350px;',
+				'placeholder' => __( '3, 7', 'cod-shield' ),
+				'desc'        => __( 'Zone IDs. COD is hidden when the chosen shipping method belongs to any excluded zone. Separate IDs with commas or new lines.', 'cod-shield' ),
+			),
+			array(
+				'title'       => __( 'Excluded shipping methods', 'cod-shield' ),
+				'id'          => Eligibility::OPT_EXCLUDED_SHIPPING_METHODS,
+				'type'        => 'textarea',
+				'default'     => '',
+				'css'         => 'min-width:350px;',
+				'placeholder' => __( 'local_pickup, flat_rate:23', 'cod-shield' ),
+				'desc'        => __( 'Shipping method IDs, optionally with an instance ID like flat_rate:23. Without an instance, every instance of that method excludes COD.', 'cod-shield' ),
+			),
+			array(
+				'title'       => __( 'Excluded products', 'cod-shield' ),
+				'id'          => Eligibility::OPT_EXCLUDED_PRODUCTS,
+				'type'        => 'textarea',
+				'default'     => '',
+				'css'         => 'min-width:350px;',
+				'placeholder' => __( '12, 77', 'cod-shield' ),
+				'desc'        => __( 'Product or variation IDs. A variation is excluded by its own ID or its parent product. Any matching cart item hides COD.', 'cod-shield' ),
+			),
+			array(
+				'title'       => __( 'Excluded product categories', 'cod-shield' ),
+				'id'          => Eligibility::OPT_EXCLUDED_CATEGORIES,
+				'type'        => 'textarea',
+				'default'     => '',
+				'css'         => 'min-width:350px;',
+				'placeholder' => __( '4, 15', 'cod-shield' ),
+				'desc'        => __( 'Category IDs. Any cart item in an excluded category hides COD.', 'cod-shield' ),
+			),
+			array(
+				'title'       => __( 'Excluded shipping classes', 'cod-shield' ),
+				'id'          => Eligibility::OPT_EXCLUDED_SHIPPING_CLASSES,
+				'type'        => 'textarea',
+				'default'     => '',
+				'css'         => 'min-width:350px;',
+				'placeholder' => __( '9, 31', 'cod-shield' ),
+				'desc'        => __( 'Shipping class IDs. Any cart item with an excluded shipping class hides COD.', 'cod-shield' ),
 			),
 			array(
 				'type' => 'sectionend',
@@ -481,6 +532,18 @@ class Settings extends \WC_Settings_Page {
 				'id'    => 'cod_shield_order_handling',
 			),
 			array(
+				'title'             => __( 'Stale advance attempt interval (minutes)', 'cod-shield' ),
+				'id'                => Core::OPT_STALE_ATTEMPT_MINUTES,
+				'type'              => 'number',
+				'default'           => 60,
+				'custom_attributes' => array(
+					'min'  => 15,
+					'max'  => 10080,
+					'step' => 1,
+				),
+				'desc_tip'          => __( 'After this interval, an unpaid attempt can be explicitly released for retry from the order screen. Verify the gateway first. Attempts without a timestamp, with a transaction, or under review remain protected.', 'cod-shield' ),
+			),
+			array(
 				'title'    => __( 'On advance payment failure', 'cod-shield' ),
 				'id'       => Core::OPT_FAILURE,
 				'type'     => 'select',
@@ -639,6 +702,18 @@ class Settings extends \WC_Settings_Page {
 	}
 
 	/**
+	 * Validate the stale interval independently of browser number constraints.
+	 *
+	 * @param mixed $value Sanitized-by-type value (unused).
+	 * @param array $option Field definition (unused).
+	 * @param mixed $raw_value Submitted minutes.
+	 * @return int
+	 */
+	public function sanitize_stale_attempt_minutes( $value, $option, $raw_value ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- WooCommerce filter signature.
+		return Core::normalize_stale_attempt_minutes( $raw_value );
+	}
+
+	/**
 	 * Sanitize the customer-facing COD title.
 	 *
 	 * @param mixed $value     Sanitized-by-type value (unused).
@@ -662,6 +737,30 @@ class Settings extends \WC_Settings_Page {
 		$rules = strtoupper( (string) $raw_value );
 		$rules = preg_replace( '/[^A-Z0-9*,\r\n ]+/', ' ', $rules );
 		return trim( (string) $rules );
+	}
+
+	/**
+	 * Sanitize an exclusion list of positive integer IDs to a clean string.
+	 *
+	 * @param mixed $value      Sanitized-by-type value (unused).
+	 * @param array $option     Field definition (unused).
+	 * @param mixed $raw_value  Raw posted value.
+	 * @return string
+	 */
+	public function sanitize_id_list_field( $value, $option, $raw_value ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- WooCommerce filter signature.
+		return implode( ', ', Eligibility::normalize_id_list( $raw_value ) );
+	}
+
+	/**
+	 * Sanitize a shipping-method exclusion list to canonical rate tokens.
+	 *
+	 * @param mixed $value      Sanitized-by-type value (unused).
+	 * @param array $option     Field definition (unused).
+	 * @param mixed $raw_value  Raw posted value.
+	 * @return string
+	 */
+	public function sanitize_shipping_method_list_field( $value, $option, $raw_value ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- WooCommerce filter signature.
+		return implode( ', ', Eligibility::normalize_shipping_method_list( $raw_value ) );
 	}
 
 	/**
@@ -730,20 +829,24 @@ class Settings extends \WC_Settings_Page {
 	 * @return array<string,string>
 	 */
 	private function get_delegation_gateway_options() {
-		$options = array();
+		$options           = array();
+		$supported_classes = apply_filters( 'cod_shield_supported_gateway_classes', Core::supported_gateway_classes() );
 		if ( function_exists( 'WC' ) && WC()->payment_gateways() ) {
 			foreach ( WC()->payment_gateways()->payment_gateways() as $id => $gateway ) {
 				$status = Core::assess_gateway_compatibility(
 					$id,
 					array(
-						'id'            => $gateway->id,
-						'enabled'       => $gateway->enabled,
-						'has_fields'    => $gateway->has_fields,
-						'supports'      => $gateway->supports,
-						'can_process'   => is_callable( array( $gateway, 'process_payment' ) ),
-						'gateway_class' => get_class( $gateway ),
-						'is_direct'     => is_a( $gateway, '\\WC_Payment_Gateway_CC' )
+						'id'                        => $gateway->id,
+						'enabled'                   => $gateway->enabled,
+						'has_fields'                => $gateway->has_fields,
+						'supports'                  => $gateway->supports,
+						'can_process'               => is_callable( array( $gateway, 'process_payment' ) ),
+						'gateway_class'             => get_class( $gateway ),
+						'is_direct'                 => is_a( $gateway, '\\WC_Payment_Gateway_CC' )
 							|| is_a( $gateway, '\\WC_Payment_Gateway_ECheck' ),
+						'payment_action'            => is_callable( array( $gateway, 'get_option' ) ) ? $gateway->get_option( 'payment_action', '' ) : '',
+						'route_enabled'             => is_callable( array( $gateway, 'get_option' ) ) ? $gateway->get_option( 'route_enable', 'no' ) : 'no',
+						'supported_gateway_classes' => is_array( $supported_classes ) ? $supported_classes : Core::supported_gateway_classes(),
 					)
 				);
 				if ( ! $status['compatible'] ) {

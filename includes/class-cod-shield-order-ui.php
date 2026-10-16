@@ -439,6 +439,18 @@ class Order_UI {
 			__( 'Due on delivery', 'cod-shield' )   => wc_price( $view->remaining ),
 		);
 
+		$attempt_state  = Core::instance()->payment_attempt_state( $order );
+		$attempt_labels = array(
+			'active'         => __( 'Active — awaiting gateway confirmation', 'cod-shield' ),
+			'stale'          => __( 'Stale — verify the gateway before releasing for retry', 'cod-shield' ),
+			'legacy_unknown' => __( 'Legacy / unknown — no valid attempt timestamp; reconcile manually', 'cod-shield' ),
+			'captured'       => __( 'Payment recorded — retry release blocked', 'cod-shield' ),
+			'review'         => __( 'Reconciliation review — retry release blocked', 'cod-shield' ),
+			'inactive'       => __( 'No active attempt', 'cod-shield' ),
+		);
+
+		$rows[ __( 'Attempt state', 'cod-shield' ) ] = $attempt_labels[ $attempt_state ];
+
 		echo '<ul>';
 		foreach ( $rows as $label => $value ) {
 			printf(
@@ -448,6 +460,15 @@ class Order_UI {
 			);
 		}
 		echo '</ul>';
+
+		if ( 'stale' === $attempt_state && in_array( $view->status, array( 'pending', 'failed' ), true ) && $order->has_status( array( 'pending', 'failed' ) ) && current_user_can( 'edit_shop_order', $order->get_id() ) ) {
+			$confirm = esc_js( __( 'Have you verified with the gateway that this attempt collected no money? Releasing permits another payment attempt. A delayed original payment could otherwise charge the customer twice.', 'cod-shield' ) );
+			echo '<input type="hidden" name="cod_shield_order_id" value="' . esc_attr( $order->get_id() ) . '" />';
+			wp_nonce_field( Core::NONCE_RELEASE_ATTEMPT . '_' . $order->get_id(), 'cod_shield_release_nonce', false );
+			echo '<p><button type="submit" name="action" value="' . esc_attr( Core::NONCE_RELEASE_ATTEMPT ) . '" formaction="' . esc_url( admin_url( 'admin-post.php' ) ) . '" formmethod="post" class="button" onclick="return confirm(\'' . $confirm . '\');">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Confirmation string escaped with esc_js().
+			echo esc_html__( 'Release stale attempt for retry', 'cod-shield' );
+			echo '</button></p>';
+		}
 
 		// Manual reconciliation: when the advance is still outstanding (never
 		// recorded as paid via the gateway — e.g. the customer paid outside the

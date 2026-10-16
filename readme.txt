@@ -7,7 +7,7 @@ Requires PHP: 8.1
 Requires Plugins: woocommerce
 WC requires at least: 8.0
 WC tested up to: 10.9
-Stable tag: 2.0.3
+Stable tag: 2.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -24,11 +24,11 @@ Cash on Delivery is the dominant payment method in Indian e-commerce but carries
 * **Advance payment collection** — fixed ₹ amount or % of order total, collected through one compatible, enabled WooCommerce gateway.
 * **Minimum order value for COD** — optional advanced rule; orders below it cannot choose Cash on Delivery at all (off by default, so activation never changes existing checkout behaviour).
 * **India-focused eligibility rules** — optionally hide COD above a maximum order value or for exact/prefix delivery pincodes such as `110001` or `400*`.
-* **Transparent checkout messaging** — admin-editable messages explaining the advance (or that COD is risk-free), with {advance_amount}, {remaining_amount} and {percentage} placeholders.
+* **Transparent checkout messaging** — clear Pay now and Pay on delivery rows, with live amount updates in Checkout Blocks and admin-editable instructions using {advance_amount}, {remaining_amount} and {percentage} placeholders.
 * **Full admin visibility** — sortable "COD Advance" column on the orders list, a filter (COD with advance / paid / pending / no advance), and an advance details metabox on the order edit screen.
 * **Audit trail** — automatic order notes on advance payment initiation, success and failure.
 * **Tested gateway compatibility** — no hard dependency on a specific gateway plugin; verify the selected gateway version with your checkout before going live.
-* **Extra COD fee** — optional advanced fee (flat ₹ or %), with tax support. Checkout Blocks currently applies it during order processing and does not preview a separate fee line before placement.
+* **Extra COD fee** — optional advanced fee (flat ₹ or %), with tax support. Both checkout types preview the fee and configured tax before placement.
 * **HPOS + Blocks compatible** — the core advance flow works with High-Performance Order Storage and both the classic shortcode and Cart/Checkout block.
 * **PDF Invoices & Packing Slips compatible** — invoice totals show the advance paid online and the balance due on delivery; a mid-flight invoice can never capture the temporary advance-only total.
 
@@ -47,9 +47,23 @@ When an advance is required, the COD option at checkout is replaced by a "Cash o
 
 1. Go to **WooCommerce → Settings → SureOrder** and enable COD on the Setup tab. Keep WooCommerce's native COD gateway enabled too.
 2. Choose **Fixed Amount** or **Percentage** and enter the amount.
-3. Choose one enabled, compatible gateway that has passed the release smoke test for your checkout.
+3. Choose one enabled, supported gateway (official Cashfree or Razorpay), then run the release smoke test for its installed version and checkout type.
+
+Fresh installations leave optional minimum and maximum advance limits disabled, so the fixed amount or percentage is applied literally. Existing saved limits are preserved.
 
 Minimum/maximum caps, COD order-value limits, excluded delivery pincodes, messaging, extra COD fees and order handling are advanced settings. If an advance is required but no usable collection gateway is configured, SureOrder hides COD instead of allowing an unprotected COD order. Other payment methods remain available.
+
+**Delayed payment confirmation and recovery**
+
+SureOrder never infers payment from age, a gateway order reference or an order status change. Automatic finalization requires a nonempty gateway transaction ID and, when an advance gateway was recorded on the order, a payment method matching that gateway. Use "Mark advance as paid (manual)" only after verifying that the advance was collected.
+
+When the gateway saves a transaction ID after the original payment/status event, SureOrder queues a catch-up check through Action Scheduler, or WP-Cron as fallback. A working scheduler is required. The check reloads the order and uses the same guarded, idempotent finalizer; it cannot recover a transaction the gateway never saves to WooCommerce.
+
+Order notes and WooCommerce → Status → Logs (source `cod-shield`) explain blocked finalization: `missing_transaction` means payment evidence is absent; `gateway_mismatch` means the payment method differs from the recorded advance gateway (only evaluated when a gateway was recorded); `invalid_total` means no valid total can be restored. Verify payment/gateway details or totals before fulfilment. Consecutive identical rejections are suppressed; diagnostics exclude customer details, tokens and transaction IDs. Internal `not_awaiting` and `ready` outcomes do not create rejection notes, and `ready` still passes through the overcharge guard.
+
+The advance metabox shows the attempt state: `active` (awaiting confirmation), `stale` (interval elapsed), `legacy_unknown` (no valid attempt marker/timestamp), `captured` (payment recorded locally), `review` (reconciliation required) or `inactive` (no active attempt). A local `captured` label does not independently verify capture with the gateway. Future timestamps remain active; legacy attempts are never automatically released.
+
+Order Handling includes "Stale advance attempt interval (minutes)": default 60, bounded to 15–10,080. Time alone never releases an attempt. After confirming in the gateway that no money was collected, an authorized order editor can choose "Release stale attempt for retry" for a pending/failed order with a pending/failed advance and valid saved totals. The action verifies permission and an order-specific nonce, refuses attempts with a transaction or review flag and legacy/unknown attempts, restores the full total and advance proxy, and adds an audit note. It leaves the advance unpaid and does not cancel the original gateway attempt; consider delayed confirmation before allowing another charge.
 
 == Frequently Asked Questions ==
 
@@ -74,6 +88,13 @@ Yes. The amount is always calculated and re-validated server-side at order creat
 Yes. CartFlows checkout steps use the native WooCommerce cart, so the advance is calculated from the same total CartFlows shows in the order review. On a CartFlows step the "Place order" button shows the advance (what is charged right now) instead of the full order total, even though CartFlows appends the full total to the button label when its "show price on button" setting is enabled.
 
 == Changelog ==
+
+= 2.1.0 =
+* **Added: high-priority COD eligibility rules.** Exclude shipping zones, shipping methods (optionally per instance like `flat_rate:23`), products, categories, and shipping classes. Any matching cart item or selected shipping method hides COD and the advance proxy with a clear customer-facing reason in classic checkout, Checkout Blocks, and the Store API. The proxy can no longer resurrect native COD removed by WooCommerce's own "enable for methods" shipping restriction or virtual-cart rules.
+* **Added: payment reliability hardening.** A transaction ID persisted after the payment event is finalized by a scheduled catch-up (Action Scheduler with WP-Cron fallback), finalization rejections are logged with stable diagnostic codes, and stale advance attempts can be explicitly released for retry from the order screen after verifying with the gateway. Payment is never inferred from order age or status.
+
+= 2.0.4 =
+* **Hardened: official Razorpay WooCommerce gateway compatibility.** SureOrder now explicitly supports Razorpay's standard redirect checkout when Payment Action is set to Authorize and Capture. Unsafe Authorize-only and Razorpay Route configurations are excluded because an authorization is not a captured advance and full-order transfer calculations can exceed the partial amount collected.
 
 = 2.0.3 =
 * **Fixed: Cashfree no longer shows a capture error when its webhook wins the return race.** When Cashfree confirms the advance by webhook before the customer's browser returns, SureOrder now lets Cashfree finish its authenticated capture callback while keeping the finalized order stored as COD.
@@ -166,6 +187,12 @@ Yes. CartFlows checkout steps use the native WooCommerce cart, so the advance is
 * Initial release.
 
 == Upgrade Notice ==
+
+= 2.1.0 =
+* Adds COD eligibility exclusion rules (shipping zones/methods, products, categories, shipping classes) with customer-facing reasons, native COD shipping-restriction parity, and payment reliability improvements for delayed or lost gateway confirmations.
+
+= 2.0.4 =
+* Adds explicit compatibility safeguards for the official Razorpay WooCommerce gateway. Use Authorize and Capture with Razorpay Route disabled.
 
 = 2.0.3 =
 * Fixes Cashfree webhook/return capture races, prevents advance double-charges and unpaid-order auto-cancellation, and adds PDF invoice support.

@@ -17,6 +17,7 @@
 namespace CodShield\Tests;
 
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\TestDox;
 
 /**
  * Checkout advance-notice highlight tests (static source checks, no WordPress).
@@ -51,11 +52,7 @@ class AdvanceNoticeTest extends TestCase {
 	 */
 	public function testClassicCheckoutWrapsMessageInNotice() {
 		$source = $this->read_source( 'includes/class-cod-shield-gateway-cod-advance.php' );
-		$this->assertSame(
-			2,
-			substr_count( $source, '<div class="cod-shield-advance-notice">' ),
-			'get_description() must wrap both the configured message and the fallback in the notice callout.'
-		);
+		$this->assertStringContainsString( '$core->get_advance_breakdown(', $source );
 	}
 
 	/**
@@ -64,11 +61,30 @@ class AdvanceNoticeTest extends TestCase {
 	 */
 	public function testBlockCheckoutWrapsMessageInNotice() {
 		$source = $this->read_source( 'includes/class-cod-shield-blocks-payment-method-type.php' );
-		$this->assertStringContainsString(
-			'<div class="cod-shield-advance-notice">',
-			$source,
-			'The block payment-method data must wrap the advance message in the notice callout.'
-		);
+		$this->assertStringContainsString( '$core->get_advance_breakdown(', $source );
+	}
+
+	/**
+	 * Display both amounts and explain that the advance is credited.
+	 */
+	#[TestDox( 'Display both amounts and explain that the advance is credited' )]
+	public function testBreakdownShowsAmountsWithoutMerchantMessage() {
+		$html = \CodShield\Core::render_advance_breakdown( '₹99.00', '₹901.00' );
+		$this->assertStringContainsString( '<dt>Pay now</dt><dd>₹99.00</dd>', $html );
+		$this->assertStringContainsString( '<dt>Pay on delivery</dt><dd>₹901.00</dd>', $html );
+		$this->assertStringContainsString( 'This advance is part of your order total.', $html );
+		$this->assertStringNotContainsString( 'cod-shield-payment-instructions', $html );
+	}
+
+	/**
+	 * Preserve custom instructions alongside the mandatory amounts.
+	 */
+	#[TestDox( 'Preserve custom instructions alongside the mandatory amounts' )]
+	public function testCustomInstructionsDoNotReplacePaymentSplit() {
+		$html = \CodShield\Core::render_advance_breakdown( '₹99.00', '₹0.00', '<strong>Keep your receipt.</strong>' );
+		$this->assertStringContainsString( '<dt>Pay now</dt><dd>₹99.00</dd>', $html );
+		$this->assertStringContainsString( '<dt>Pay on delivery</dt><dd>₹0.00</dd>', $html );
+		$this->assertStringContainsString( '<strong>Keep your receipt.</strong>', $html );
 	}
 
 	/**

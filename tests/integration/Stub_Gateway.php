@@ -55,6 +55,9 @@ if ( ! class_exists( 'WC_Gateway_COD_Shield_Stub' ) ) {
 		 */
 		public $txn_id = 'txn-stub-001';
 
+		/** @var int Number of payment initiation calls. */
+		public $process_count = 0;
+
 		/**
 		 * Constructor.
 		 */
@@ -74,6 +77,7 @@ if ( ! class_exists( 'WC_Gateway_COD_Shield_Stub' ) ) {
 		 * @return array<string,mixed>
 		 */
 		public function process_payment( $order_id ) {
+			++$this->process_count;
 			$order = wc_get_order( $order_id );
 			if ( ! $order ) {
 				return array( 'result' => 'failure' );

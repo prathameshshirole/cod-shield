@@ -45,6 +45,8 @@ COD_SHIELD_ORDER_STORAGE=legacy composer test:integration
 COD_SHIELD_ORDER_STORAGE=hpos composer test:integration
 ```
 
+`composer test` remains the database-free local suite. `composer test:all` runs that suite followed by integration tests and therefore requires the WordPress, WooCommerce and MySQL setup above.
+
 ## Writing a new lifecycle integration test
 
 1. Create the order with the WC test factory: `WC_Helper_Order::create_order()`.
@@ -69,7 +71,7 @@ Use `tests/integration/Stub_Gateway.php` to control the delegation outcome
 - [x] Manual mark: converts to COD after a failed attempt and is idempotent.
 - [x] Block-checkout `filter_store_api_cart_errors`: errors added only when COD
       is the chosen method; non-COD orders never blocked.
-- [x] Block-checkout COD fee: persisted exactly once across repeated callbacks.
+- [x] Block-checkout COD fee: cart preview remains singular across repeated calculations and switching away from COD removes it.
 
 GitHub Actions runs this suite under legacy and HPOS storage against the oldest
 supported WordPress/PHP pair and the current test pair. Credentialed gateway

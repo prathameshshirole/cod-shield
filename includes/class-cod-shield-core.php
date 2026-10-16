@@ -33,6 +33,8 @@ class Core {
 	const OPT_FAILURE           = 'cod_shield_on_advance_failure';
 	const OPT_ORDER_STATUS      = 'cod_shield_order_status';
 
+	const OPT_STALE_ATTEMPT_MINUTES = 'cod_shield_stale_attempt_minutes';
+
 	const OPT_FEE_ENABLED    = 'cod_shield_fee_enabled';
 	const OPT_FEE_TYPE       = 'cod_shield_fee_type';
 	const OPT_FEE_AMOUNT     = 'cod_shield_fee_amount';
@@ -49,15 +51,27 @@ class Core {
 	/** Admin "mark advance as paid" action (admin-post). */
 	const NONCE_MANUAL_PAID = 'cod_shield_mark_advance_paid';
 
+	/** Admin release of a stale, transaction-free advance attempt. */
+	const NONCE_RELEASE_ATTEMPT = 'cod_shield_release_advance_attempt';
+
 	// Order meta keys (HPOS-safe, always read/written through WC_Order CRUD).
-	const META_ADVANCE        = '_cod_shield_advance_amount';
-	const META_MODE           = '_cod_shield_advance_mode';
-	const META_GATEWAY_USED   = '_cod_shield_gateway_used';
-	const META_TXN            = '_cod_shield_gateway_txn_id';
-	const META_STATUS         = '_cod_shield_advance_status';
-	const META_REMAINING      = '_cod_shield_remaining_due';
-	const META_ORIGINAL_TOTAL = '_cod_shield_original_total';
-	const META_AWAITING       = '_cod_shield_awaiting_advance';
+	const META_ADVANCE         = '_cod_shield_advance_amount';
+	const META_MODE            = '_cod_shield_advance_mode';
+	const META_GATEWAY_USED    = '_cod_shield_gateway_used';
+	const META_TXN             = '_cod_shield_gateway_txn_id';
+	const META_STATUS          = '_cod_shield_advance_status';
+	const META_REMAINING       = '_cod_shield_remaining_due';
+	const META_ORIGINAL_TOTAL  = '_cod_shield_original_total';
+	const META_AWAITING        = '_cod_shield_awaiting_advance';
+	const META_ATTEMPT_STARTED = '_cod_shield_advance_attempt_started';
+
+	const META_ATTEMPT_STARTED_AT = '_cod_shield_advance_attempt_started_at';
+
+	/** Most recent actionable rejection, used to suppress repeated diagnostics. */
+	const META_FINALIZATION_DIAGNOSTIC = '_cod_shield_finalization_diagnostic';
+
+	/** One-order background catch-up for a transaction saved after payment events. */
+	const ACTION_RECONCILE_ADVANCE = 'cod_shield_reconcile_advance_order';
 
 	/**
 	 * Singleton instance.
@@ -90,8 +104,8 @@ class Core {
 			self::OPT_MODE              => 'disabled',
 			self::OPT_FIXED             => 99,
 			self::OPT_PERCENTAGE        => 10,
-			self::OPT_MIN               => 49,
-			self::OPT_MAX               => 999,
+			self::OPT_MIN               => 0,
+			self::OPT_MAX               => 0,
 			// Order-value floor: 0 = no minimum. A non-zero default would hide
 			// small COD orders the moment the plugin is activated on a live
 			// store — even for merchants who only want the kill switch or the
@@ -121,8 +135,14 @@ class Core {
 		);
 		// Literal keys keep the pure calculation/lifecycle harness dependency-free;
 		// the Eligibility class exposes the same option names at runtime.
-		$defaults['cod_shield_cod_maximum']       = 0;
-		$defaults['cod_shield_excluded_pincodes'] = '';
+		$defaults['cod_shield_cod_maximum']               = 0;
+		$defaults['cod_shield_excluded_pincodes']         = '';
+		$defaults['cod_shield_excluded_shipping_zones']   = '';
+		$defaults['cod_shield_excluded_shipping_methods'] = '';
+		$defaults['cod_shield_excluded_products']         = '';
+		$defaults['cod_shield_excluded_categories']       = '';
+		$defaults['cod_shield_excluded_shipping_classes'] = '';
+		$defaults[ self::OPT_STALE_ATTEMPT_MINUTES ]      = 60;
 		return $defaults;
 	}
 
@@ -324,6 +344,118 @@ class Core {
 		return '';
 	}
 
+	/** Explicitly supported gateway implementations. */
+	public static function supported_gateway_classes() {
+		return array(
+			'cashfree' => array( 'WC_Cashfree_Payments' ),
+			'razorpay' => array( 'WC_Razorpay' ),
+		);
+	}
+
+	/**
+	 * Whether an advance attempt has already left the proxy gateway.
+	 *
+	 * @param string $awaiting Awaiting/review state.
+	 * @param string $attempt_started Attempt-started marker.
+	 * @param string $transaction_id Transaction id.
+	 * @param string $gateway_used Recorded delegation gateway id.
+	 * @return bool
+	 */
+	public static function payment_attempt_is_in_flight( $awaiting, $attempt_started, $transaction_id, $gateway_used ) {
+		return '' !== trim( (string) $transaction_id )
+			|| 'review' === $awaiting
+			|| ( 'yes' === $awaiting && ( 'yes' === $attempt_started || ( '' === $attempt_started && '' !== trim( (string) $gateway_used ) ) ) );
+	}
+
+	/**
+	 * Bound the merchant's recovery interval to 15 minutes through seven days.
+	 *
+	 * @param mixed $value Configured minutes.
+	 * @return int
+	 */
+	public static function normalize_stale_attempt_minutes( $value ): int {
+		if ( ! is_numeric( $value ) || ! is_finite( (float) $value ) ) {
+			return 60;
+		}
+		return (int) max( 15, min( 10080, (float) $value ) );
+	}
+
+	/**
+	 * Classify a local attempt without inferring whether a gateway took money.
+	 *
+	 * Future timestamps stay active; missing or invalid timestamps stay protected.
+	 *
+	 * @param array $state Attempt metadata and payment evidence.
+	 * @param int   $now Current UTC epoch seconds.
+	 * @param int   $stale_minutes Recovery interval in minutes.
+	 * @return string
+	 */
+	public static function classify_payment_attempt( array $state, int $now, int $stale_minutes ): string {
+		if ( 'review' === ( $state['awaiting'] ?? '' ) || 'review' === ( $state['status'] ?? '' ) ) {
+			return 'review';
+		}
+		if ( '' !== trim( (string) ( $state['transaction_id'] ?? '' ) ) || '' !== trim( (string) ( $state['recorded_transaction_id'] ?? '' ) ) || 'paid' === ( $state['status'] ?? '' ) ) {
+			return 'captured';
+		}
+		if ( 'yes' !== ( $state['awaiting'] ?? '' ) || 'no' === ( $state['attempt_started'] ?? '' ) ) {
+			return 'inactive';
+		}
+		$started_at = $state['started_at'] ?? '';
+		if ( 'yes' !== ( $state['attempt_started'] ?? '' ) || ! is_scalar( $started_at ) || ! ctype_digit( (string) $started_at ) || (float) $started_at <= 0 || (float) $started_at > PHP_INT_MAX ) {
+			return 'legacy_unknown';
+		}
+		return $now - (int) $started_at >= self::normalize_stale_attempt_minutes( $stale_minutes ) * 60 ? 'stale' : 'active';
+	}
+
+	/**
+	 * Read HPOS-safe order state for both the recovery UI and release action.
+	 *
+	 * @param \WC_Order $order Order.
+	 * @return string
+	 */
+	public function payment_attempt_state( $order ): string {
+		return self::classify_payment_attempt(
+			array(
+				'awaiting'                => $order->get_meta( self::META_AWAITING ),
+				'attempt_started'         => $order->get_meta( self::META_ATTEMPT_STARTED ),
+				'started_at'              => $order->get_meta( self::META_ATTEMPT_STARTED_AT ),
+				'transaction_id'          => $order->get_transaction_id(),
+				'recorded_transaction_id' => $order->get_meta( self::META_TXN ),
+				'status'                  => $order->get_meta( self::META_STATUS ),
+			),
+			time(),
+			self::normalize_stale_attempt_minutes( $this->get_option( self::OPT_STALE_ATTEMPT_MINUTES, 60 ) )
+		);
+	}
+
+	/**
+	 * Log actionable finalization rejections only when the reason changes.
+	 *
+	 * @param string $previous Previously recorded rejection code.
+	 * @param string $current  Current outcome code.
+	 * @return bool
+	 */
+	public static function should_log_finalization_diagnostic( string $previous, string $current ): bool {
+		return $previous !== $current
+			&& in_array( $current, array( 'missing_transaction', 'gateway_mismatch', 'invalid_total' ), true );
+	}
+
+	/**
+	 * Whether retry rejection should repair WooCommerce's resumed-order mutations.
+	 *
+	 * @param string $awaiting       Awaiting/review state.
+	 * @param string $advance_status Recorded advance status.
+	 * @param string $gateway_used   Recorded delegation gateway id.
+	 * @param float  $advance        Recorded advance amount.
+	 * @return bool
+	 */
+	public static function should_restore_in_flight_state( $awaiting, $advance_status, $gateway_used, $advance ) {
+		return 'yes' === $awaiting
+			&& 'paid' !== $advance_status
+			&& '' !== trim( (string) $gateway_used )
+			&& (float) $advance > 0;
+	}
+
 	/**
 	 * Decide whether Cashfree's return handler should see the original gateway.
 	 *
@@ -364,6 +496,7 @@ class Core {
 	public static function assess_gateway_compatibility( $configured_id, array $characteristics ) {
 		$configured_id = trim( (string) $configured_id );
 		$gateway_id    = trim( (string) ( $characteristics['id'] ?? $configured_id ) );
+		$gateway_class = ltrim( (string) ( $characteristics['gateway_class'] ?? '' ), '\\' );
 		$supports      = array();
 
 		foreach ( (array) ( $characteristics['supports'] ?? array() ) as $feature ) {
@@ -410,12 +543,46 @@ class Core {
 		}
 
 		$is_tokenized         = in_array( 'tokenization', $supports, true );
-		$gateway_class        = ltrim( (string) ( $characteristics['gateway_class'] ?? '' ), '\\' );
 		$is_cashfree_redirect = 'cashfree' === $gateway_id && 'WC_Cashfree_Payments' === $gateway_class;
 		if ( ! empty( $characteristics['is_direct'] ) || ( ! empty( $characteristics['has_fields'] ) && ! $is_cashfree_redirect ) ) {
 			return array(
 				'compatible' => false,
 				'code'       => $is_tokenized ? 'tokenized_fields_required' : 'checkout_fields_required',
+			);
+		}
+
+		$supported   = isset( $characteristics['supported_gateway_classes'] ) && is_array( $characteristics['supported_gateway_classes'] )
+			? $characteristics['supported_gateway_classes']
+			: self::supported_gateway_classes();
+		$raw_classes = isset( $supported[ $gateway_id ] ) && is_array( $supported[ $gateway_id ] ) ? $supported[ $gateway_id ] : array();
+		$classes     = array();
+		foreach ( $raw_classes as $class_name ) {
+			if ( ! is_scalar( $class_name ) ) {
+				continue;
+			}
+			$class_name = ltrim( trim( (string) $class_name ), '\\' );
+			if ( '' !== $class_name ) {
+				$classes[] = $class_name;
+			}
+		}
+		if ( ! in_array( $gateway_class, $classes, true ) ) {
+			return array(
+				'compatible' => false,
+				'code'       => 'gateway_not_explicitly_supported',
+			);
+		}
+
+		$is_official_razorpay = 'razorpay' === $gateway_id && 'WC_Razorpay' === $gateway_class;
+		if ( $is_official_razorpay && 'authorize' === ( $characteristics['payment_action'] ?? '' ) ) {
+			return array(
+				'compatible' => false,
+				'code'       => 'razorpay_manual_capture_unsupported',
+			);
+		}
+		if ( $is_official_razorpay && 'yes' === ( $characteristics['route_enabled'] ?? 'no' ) ) {
+			return array(
+				'compatible' => false,
+				'code'       => 'razorpay_route_unsupported',
 			);
 		}
 		if ( ! in_array( 'products', $supports, true ) ) {
@@ -511,17 +678,21 @@ class Core {
 		}
 
 		$gateway           = $gateways[ $id ];
+		$supported_classes = apply_filters( 'cod_shield_supported_gateway_classes', self::supported_gateway_classes() );
 		$status            = self::assess_gateway_compatibility(
 			$id,
 			array(
-				'id'            => $gateway->id,
-				'enabled'       => $gateway->enabled,
-				'has_fields'    => $gateway->has_fields,
-				'supports'      => $gateway->supports,
-				'can_process'   => is_callable( array( $gateway, 'process_payment' ) ),
-				'gateway_class' => get_class( $gateway ),
-				'is_direct'     => is_a( $gateway, '\WC_Payment_Gateway_CC' )
+				'id'                        => $gateway->id,
+				'enabled'                   => $gateway->enabled,
+				'has_fields'                => $gateway->has_fields,
+				'supports'                  => $gateway->supports,
+				'can_process'               => is_callable( array( $gateway, 'process_payment' ) ),
+				'gateway_class'             => get_class( $gateway ),
+				'is_direct'                 => is_a( $gateway, '\WC_Payment_Gateway_CC' )
 					|| is_a( $gateway, '\WC_Payment_Gateway_ECheck' ),
+				'payment_action'            => is_callable( array( $gateway, 'get_option' ) ) ? $gateway->get_option( 'payment_action', '' ) : '',
+				'route_enabled'             => is_callable( array( $gateway, 'get_option' ) ) ? $gateway->get_option( 'route_enable', 'no' ) : 'no',
+				'supported_gateway_classes' => is_array( $supported_classes ) ? $supported_classes : self::supported_gateway_classes(),
 			)
 		);
 		$status['gateway'] = $status['compatible'] ? $gateway : null;
@@ -713,6 +884,57 @@ class Core {
 			return '';
 		}
 		return $this->format_message( $settings['msg_adv_text'], $advance, $remaining, (float) $settings['percentage'] );
+	}
+
+	/**
+	 * Render the mandatory payment split, with optional merchant instructions.
+	 *
+	 * @param float  $advance   Advance amount.
+	 * @param float  $remaining Remaining due on delivery.
+	 * @param string $currency  Order currency; empty uses the store currency.
+	 * @return string
+	 */
+	public function get_advance_breakdown( $advance, $remaining, $currency = '' ) {
+		$settings = $this->all_settings();
+		$args     = '' !== $currency ? array( 'currency' => $currency ) : array();
+		$now      = wc_price( max( 0.0, (float) $advance ), $args );
+		$later    = wc_price( max( 0.0, (float) $remaining ), $args );
+		$message  = '';
+		$defaults = self::get_defaults();
+
+		// The default sentence repeats the rows; keep only custom instructions.
+		if ( 'yes' === $settings['msg_adv_enabled'] && ! empty( $settings['msg_adv_text'] ) && $defaults[ self::OPT_MSG_ADV_TEXT ] !== $settings['msg_adv_text'] ) {
+			$message = self::substitute_placeholders(
+				$settings['msg_adv_text'],
+				array(
+					'advance_amount'   => $now,
+					'remaining_amount' => $later,
+					'percentage'       => (string) round( (float) $settings['percentage'] ),
+				)
+			);
+		}
+
+		return self::render_advance_breakdown( wp_kses_post( $now ), wp_kses_post( $later ), wp_kses_post( $message ) );
+	}
+
+	/**
+	 * Build semantic payment rows from already sanitized price markup.
+	 *
+	 * @param string $advance_html   Sanitized formatted advance.
+	 * @param string $remaining_html Sanitized formatted balance.
+	 * @param string $message_html   Sanitized merchant instructions.
+	 * @return string
+	 */
+	public static function render_advance_breakdown( $advance_html, $remaining_html, $message_html = '' ) {
+		$html  = '<div class="cod-shield-advance-notice">';
+		$html .= '<dl class="cod-shield-payment-breakdown">';
+		$html .= '<div class="cod-shield-payment-row"><dt>' . htmlspecialchars( __( 'Pay now', 'cod-shield' ), ENT_QUOTES, 'UTF-8' ) . '</dt><dd>' . $advance_html . '</dd></div>';
+		$html .= '<div class="cod-shield-payment-row"><dt>' . htmlspecialchars( __( 'Pay on delivery', 'cod-shield' ), ENT_QUOTES, 'UTF-8' ) . '</dt><dd>' . $remaining_html . '</dd></div>';
+		$html .= '</dl><p class="cod-shield-payment-explanation">' . htmlspecialchars( __( 'This advance is part of your order total.', 'cod-shield' ), ENT_QUOTES, 'UTF-8' ) . '</p>';
+		if ( '' !== trim( $message_html ) ) {
+			$html .= '<div class="cod-shield-payment-instructions">' . $message_html . '</div>';
+		}
+		return $html . '</div>';
 	}
 
 	/**

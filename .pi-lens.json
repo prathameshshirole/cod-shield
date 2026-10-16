@@ -1,0 +1,27 @@
+{
+	"$comment": "intelephense P1005/P1009/P1010/P1011/P1013/P1014 fire on WordPress/WooCommerce core symbols because this project's LSP session does not index vendor/php-stubs (wordpress-stubs, woocommerce-stubs): undefined WC base classes (P1009), undefined WP/WC functions (P1010), undefined WP constants like ARRAY_A (P1011), undefined WP_Error/base-class methods (P1013), undefined WC_Settings_Page properties (P1014), and arity checks against wrongly-resolved WP symbols like current_user_can (P1005). WordPress resolves these via PHP's global-namespace fallback at runtime, and composer lint (PHPCS + WordPress Coding Standards) validates them authoritatively. Disable these symbol-resolution rules project-wide; all other diagnostics remain active.",
+	"rules": {
+		"intelephense": {
+			"disable": [
+				"P1005",
+				"P1009",
+				"P1010",
+				"P1011",
+				"P1013",
+				"P1014",
+				"intelephense:P1005",
+				"intelephense:P1009",
+				"intelephense:P1010",
+				"intelephense:P1011",
+				"intelephense:P1013",
+				"intelephense:P1014",
+				"lsp:P1005",
+				"lsp:P1009",
+				"lsp:P1010",
+				"lsp:P1011",
+				"lsp:P1013",
+				"lsp:P1014"
+			]
+		}
+	}
+}

@@ -17,6 +17,36 @@ defined( 'ABSPATH' ) || exit;
 class Checkout {
 
 	/**
+	 * Whether the native COD gateway was removed from the current available
+	 * gateway list specifically so the advance proxy can replace it.
+	 *
+	 * Gateway_Bridge runs on the same filter at priority 20 and must not
+	 * resurrect native COD that WooCommerce core already removed (e.g. the
+	 * COD gateway's "enable for methods" shipping restriction). This flag is
+	 * the only evidence that the cod entry was removed deliberately for the
+	 * proxy swap, because the bridge can no longer see it in the list.
+	 *
+	 * @var bool
+	 */
+	private static $cod_removed_for_swap = false;
+
+	/**
+	 * Whether native COD was removed from the available list for proxy swap.
+	 *
+	 * @return bool
+	 */
+	public static function cod_removed_for_swap() {
+		return self::$cod_removed_for_swap;
+	}
+
+	/**
+	 * Whether the current REST request serves the Store API cart.
+	 *
+	 * @var bool
+	 */
+	private $store_api_cart_request = false;
+
+	/**
 	 * Hook registration.
 	 */
 	public function __construct() {
@@ -24,12 +54,9 @@ class Checkout {
 		add_filter( 'woocommerce_available_payment_gateways', array( $this, 'filter_available_gateways' ), 10 );
 		add_filter( 'woocommerce_gateway_title', array( $this, 'filter_cod_title' ), 10, 2 );
 
-		// Classic checkout messaging (free/risk-free note appended to the native
-		// COD description — also the no-JS fallback). The live risk-free info
-		// box above the payment section is rendered by assets/js/checkout.js;
-		// the advance notice renders under the payment method radio via the
-		// gateway description instead (never repeated above the payment box).
+		// Native descriptions refresh with WooCommerce checkout fragments.
 		add_filter( 'woocommerce_gateway_description', array( $this, 'filter_cod_description' ), 10, 2 );
+		add_action( 'woocommerce_review_order_before_submit', array( $this, 'render_cod_minimum_notice' ) );
 
 		// "Place order" button shows what the customer actually pays right now:
 		// the advance, not the full order total, when the advance flow applies.
@@ -65,10 +92,9 @@ class Checkout {
 		// Thank-you page confirmation of both amounts.
 		add_action( 'woocommerce_thankyou', array( $this, 'render_thankyou_summary' ), 10, 1 );
 
-		// Extra COD fee (features.md): cart-level on the classic checkout,
-		// order-level for the block checkout.
+		// Cart fees are visible before submission in classic and block checkout.
 		add_action( 'woocommerce_cart_calculate_fees', array( $this, 'maybe_add_cod_fee' ) );
-		add_action( 'woocommerce_store_api_checkout_order_processed', array( $this, 'maybe_add_cod_fee_to_order' ), 5, 1 );
+		add_filter( 'rest_request_before_callbacks', array( $this, 'track_store_api_request' ), 10, 3 );
 	}
 
 	/**
@@ -86,6 +112,9 @@ class Checkout {
 	 */
 	public function filter_available_gateways( $gateways ) {
 		$core = Core::instance();
+		// Reset per evaluation: each filter run must independently prove that
+		// native COD was deliberately removed for the proxy swap.
+		self::$cod_removed_for_swap = false;
 		if ( isset( $gateways['cod'] ) ) {
 			$custom_title = trim( (string) $core->get_option( Core::OPT_COD_TITLE, '' ) );
 			if ( '' !== $custom_title ) {
@@ -147,6 +176,10 @@ class Checkout {
 			unset( $gateways['cod'] );
 		} elseif ( $required ) {
 			unset( $gateways['cod'] ); // Replaced by the proxy (priority 20).
+			// The only legitimate pre-proxy removal: record it so Gateway_Bridge
+			// (priority 20) can distinguish this swap from a WC-core removal
+			// (shipping-method restriction / virtual cart / disabled gateway).
+			self::$cod_removed_for_swap = true;
 		}
 
 		return $gateways;
@@ -605,14 +638,70 @@ class Checkout {
 	}
 
 	/**
-	 * Extra COD fee — classic checkout: add the fee to the cart when COD (or
+	 * Track Store API cart and checkout requests, including pretty and plain permalinks.
+	 *
+	 * @param mixed            $response REST response.
+	 * @param array            $handler  Route handler.
+	 * @param \WP_REST_Request $request  Current request.
+	 * @return mixed
+	 */
+	public function track_store_api_request( $response, $handler, $request ) {
+		$this->store_api_cart_request = (bool) preg_match( '#^/wc/store/v[0-9]+/(cart|checkout)(?:/|$)#', $request->get_route() );
+		if ( null !== $response || 'POST' !== $request->get_method() || ! preg_match( '#^/wc/store/v[0-9]+/checkout/?$#', $request->get_route() ) ) {
+			return $response;
+		}
+		$core = Core::instance();
+		if ( ! $core->cod_enabled() || 'yes' !== $core->get_option( Core::OPT_FEE_ENABLED, 'no' ) ) {
+			return $response;
+		}
+		$method = $request->get_param( 'payment_method' );
+		if ( ! is_string( $method ) || '' === $method ) {
+			return $response;
+		}
+		$preview_method = WC()->session ? (string) WC()->session->get( 'chosen_payment_method', '' ) : '';
+		$cod_methods    = array( 'cod', Core::GATEWAY_ID );
+		if ( in_array( $method, $cod_methods, true ) !== in_array( $preview_method, $cod_methods, true ) ) {
+			return new \WP_Error(
+				'cod_shield_payment_totals_changed',
+				__( 'Your payment method changed. Please select it again and wait for the order total to update before placing your order.', 'cod-shield' ),
+				array( 'status' => 409 )
+			);
+		}
+		return $response;
+	}
+
+	/**
+	 * Explain why COD is unavailable inside the refreshed classic payment fragment.
+	 *
+	 * @return void
+	 */
+	public function render_cod_minimum_notice() {
+		$core = Core::instance();
+		if ( ! $core->cod_enabled() || ! $core->is_below_cod_minimum( $core->get_cart_total() ) ) {
+			return;
+		}
+		$gateways = WC()->payment_gateways()->payment_gateways();
+		if ( ! isset( $gateways['cod'] ) || 'yes' !== $gateways['cod']->enabled ) {
+			return;
+		}
+		echo '<p class="woocommerce-info cod-shield-minimum-notice" role="status">' . wp_kses_post(
+			sprintf(
+				/* translators: %s: minimum order value for cash on delivery. */
+				__( 'Cash on delivery is available on orders of %s or more.', 'cod-shield' ),
+				wc_price( (float) $core->get_option( Core::OPT_THRESHOLD, 0 ) )
+			)
+		) . '</p>';
+	}
+
+	/**
+	 * Extra COD fee — classic and block checkout: add the fee to the cart when COD (or
 	 * the advance proxy, which is still a COD order) is the chosen method.
 	 *
 	 * @param \WC_Cart $cart Cart.
 	 * @return void
 	 */
 	public function maybe_add_cod_fee( $cart ) {
-		if ( ! function_exists( 'is_checkout' ) || ! is_checkout() ) {
+		if ( ! $this->store_api_cart_request && ( ! function_exists( 'is_checkout' ) || ! is_checkout() ) ) {
 			return;
 		}
 
@@ -626,7 +715,15 @@ class Checkout {
 			return;
 		}
 
-		$fee = $core->calculate_fee( (float) $cart->get_total( '' ) );
+		// WC_Cart::get_total() can still contain the previous calculation here.
+		$total = (float) $cart->get_cart_contents_total() + (float) $cart->get_cart_contents_tax()
+			+ (float) $cart->get_shipping_total() + (float) $cart->get_shipping_tax();
+		foreach ( $cart->get_fees() as $other_fee ) {
+			if ( sanitize_title( __( 'Cash on Delivery Fee', 'cod-shield' ) ) !== $other_fee->id ) {
+				$total += (float) $other_fee->amount + (float) ( $other_fee->tax ?? 0 );
+			}
+		}
+		$fee = $core->calculate_fee( $total );
 		if ( $fee <= 0 ) {
 			return;
 		}
@@ -638,58 +735,6 @@ class Checkout {
 			'yes' === $settings['fee_taxable'],
 			(string) $settings['fee_tax_class']
 		);
-	}
-
-	/**
-	 * Extra COD fee — block checkout: the Store API does not set the chosen
-	 * payment method in the session before the cart is calculated, so the fee
-	 * is applied as an order line item right before payment processing.
-	 *
-	 * Runs at priority 5 so the advance amount (attached at priority 10)
-	 * reflects the fee-inclusive total.
-	 *
-	 * @param \WC_Order $order Order.
-	 * @return void
-	 */
-	public function maybe_add_cod_fee_to_order( $order ) {
-		if ( ! is_a( $order, '\WC_Order' ) ) {
-			return;
-		}
-
-		$core = Core::instance();
-		if ( 'no' === $core->get_option( Core::OPT_FEE_ENABLED, 'no' ) || ! $core->cod_enabled() ) {
-			return;
-		}
-
-		$method = $order->get_payment_method();
-		if ( ! in_array( $method, array( 'cod', Core::GATEWAY_ID ), true ) ) {
-			return;
-		}
-
-		// Idempotent: never add the fee twice (the hook can fire on retries).
-		foreach ( $order->get_fees() as $fee_item ) {
-			if ( 'yes' === $fee_item->get_meta( '_cod_shield_fee', true ) ) {
-				return;
-			}
-		}
-
-		$fee = $core->calculate_fee( (float) $order->get_total() );
-		if ( $fee <= 0 ) {
-			return;
-		}
-
-		$settings = $core->all_settings();
-		$item     = new \WC_Order_Item_Fee();
-		$item->set_name( __( 'Cash on Delivery Fee', 'cod-shield' ) );
-		$item->set_amount( $fee );
-		$item->set_total( $fee );
-		$item->set_tax_class( (string) $settings['fee_tax_class'] );
-		$item->set_tax_status( 'yes' === $settings['fee_taxable'] ? 'taxable' : 'none' );
-		$item->add_meta_data( '_cod_shield_fee', 'yes' );
-
-		$order->add_item( $item );
-		$order->calculate_totals();
-		$order->save();
 	}
 
 	/**
@@ -710,16 +755,12 @@ class Checkout {
 			return;
 		}
 
-		$gateway   = $order->get_meta( Core::META_GATEWAY_USED );
 		$remaining = (float) $order->get_meta( Core::META_REMAINING );
 
 		echo '<section class="cod-shield-thankyou">';
 		echo '<h2 class="woocommerce-order-details__title">' . esc_html__( 'Payment summary', 'cod-shield' ) . '</h2>';
 		echo '<ul class="woocommerce-order-overview woocommerce-thankyou-order-details">';
 		echo '<li>' . esc_html__( 'Advance paid:', 'cod-shield' ) . ' <strong>' . wp_kses_post( wc_price( $advance ) ) . '</strong>';
-		if ( $gateway ) {
-			echo ' <small>(' . esc_html( sprintf( /* translators: %s: gateway id. */ __( 'via %s', 'cod-shield' ), $gateway ) ) . ')</small>';
-		}
 		echo '</li>';
 		echo '<li>' . esc_html__( 'Payable on delivery:', 'cod-shield' ) . ' <strong>' . wp_kses_post( wc_price( $remaining ) ) . '</strong></li>';
 		echo '</ul></section>';

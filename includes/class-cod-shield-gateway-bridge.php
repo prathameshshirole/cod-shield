@@ -50,6 +50,20 @@ defined( 'ABSPATH' ) || exit;
 class Gateway_Bridge {
 
 	/**
+	 * Orders currently dispatching save-driven work.
+	 *
+	 * @var array<int,bool>
+	 */
+	private static $observing_orders = array();
+
+	/**
+	 * Orders currently running scheduled reconciliation.
+	 *
+	 * @var array<int,bool>
+	 */
+	private static $reconciling_orders = array();
+
+	/**
 	 * Hook registration.
 	 */
 	public function __construct() {
@@ -66,6 +80,8 @@ class Gateway_Bridge {
 		add_action( 'woocommerce_payment_complete', array( $this, 'finalize_advance_order' ), 10, 1 );
 		add_action( 'woocommerce_order_status_processing', array( $this, 'finalize_advance_order' ), 10, 1 );
 		add_action( 'woocommerce_order_status_completed', array( $this, 'finalize_advance_order' ), 10, 1 );
+		add_action( 'woocommerce_after_order_object_save', array( $this, 'maybe_schedule_advance_reconciliation' ), 10, 1 );
+		add_action( Core::ACTION_RECONCILE_ADVANCE, array( $this, 'reconcile_advance_order' ), 10, 1 );
 
 		// Some gateways record the transaction id in a second step/request,
 		// AFTER marking the order processing. Finalize on the status change
@@ -92,6 +108,7 @@ class Gateway_Bridge {
 		// customer paid outside the gateway, or the gateway never recorded a
 		// transaction id). Nonce + capability checked in the handler.
 		add_action( 'admin_post_' . Core::NONCE_MANUAL_PAID, array( $this, 'handle_manual_mark_advance_paid' ) );
+		add_action( 'admin_post_' . Core::NONCE_RELEASE_ATTEMPT, array( $this, 'handle_release_stale_advance' ) );
 		add_action( 'admin_notices', array( $this, 'render_manual_paid_notice' ) );
 	}
 
@@ -166,7 +183,11 @@ class Gateway_Bridge {
 			return $gateways;
 		}
 
-		if ( $core->advance_flow_active() ) {
+		// Native COD parity: only replace native COD that was actually there.
+		// Checkout (priority 10) records the deliberate swap; when WooCommerce
+		// core itself removed COD ("enable for methods" shipping restriction,
+		// virtual-only carts, disabled gateway) the proxy must never resurrect it.
+		if ( $core->advance_flow_active() && Checkout::cod_removed_for_swap() ) {
 			$gateways[ Core::GATEWAY_ID ] = new Gateway_COD_Advance();
 		} else {
 			unset( $gateways[ Core::GATEWAY_ID ] );
@@ -189,8 +210,103 @@ class Gateway_Bridge {
 			return;
 		}
 
-		if ( 'yes' !== $order->get_meta( Core::META_AWAITING ) ) {
+		$outcome = $this->evaluate_finalization_outcome( $order );
+		if ( 'ready' !== $outcome ) {
+			$this->record_finalization_diagnostic( $order, $outcome );
 			return;
+		}
+
+		$this->do_finalize( $order, $order->get_transaction_id(), false );
+	}
+
+	/**
+	 * Queue catch-up when a gateway persists payment evidence after its events.
+	 *
+	 * Never finalize or save from the observer: the gateway may still be inside
+	 * its own save/status transition. Rejected evidence is evaluated again by
+	 * the finalizer, which owns diagnostics and all money-related mutations.
+	 *
+	 * @param \WC_Order $order Persisted order.
+	 * @return void
+	 */
+	public function maybe_schedule_advance_reconciliation( $order ): void {
+		if ( ! is_a( $order, '\WC_Order' ) ) {
+			return;
+		}
+
+		$order_id = (int) $order->get_id();
+		if ( $order_id <= 0 || isset( self::$observing_orders[ $order_id ] ) || isset( self::$reconciling_orders[ $order_id ] ) ) {
+			return;
+		}
+		if ( in_array( $this->evaluate_finalization_outcome( $order ), array( 'not_awaiting', 'missing_transaction' ), true ) ) {
+			return;
+		}
+
+		self::$observing_orders[ $order_id ] = true;
+		try {
+			$args = array( $order_id );
+			// Keep a previously queued fallback when Action Scheduler becomes
+			// available later, instead of dispatching the same order twice.
+			if ( wp_next_scheduled( Core::ACTION_RECONCILE_ADVANCE, $args ) ) {
+				return;
+			}
+
+			if ( function_exists( 'as_enqueue_async_action' ) && function_exists( 'as_has_scheduled_action' ) && did_action( 'action_scheduler_init' ) ) {
+				if ( as_has_scheduled_action( Core::ACTION_RECONCILE_ADVANCE, $args, 'cod-shield' ) ) {
+					return;
+				}
+				$action_id = as_enqueue_async_action( Core::ACTION_RECONCILE_ADVANCE, $args, 'cod-shield', true );
+				// A unique enqueue may lose a race to another request. Only
+				// fall back if no matching pending/running action exists.
+				if ( $action_id || as_has_scheduled_action( Core::ACTION_RECONCILE_ADVANCE, $args, 'cod-shield' ) ) {
+					return;
+				}
+			}
+
+			wp_schedule_single_event( time(), Core::ACTION_RECONCILE_ADVANCE, $args );
+		} finally {
+			unset( self::$observing_orders[ $order_id ] );
+		}
+	}
+
+	/**
+	 * Reload one order and apply the existing idempotent evidence-gated finalizer.
+	 *
+	 * Diagnostic saves can leave the awaiting flag set. Suppress their observer
+	 * and any reentrant callback until this reconciliation exits, even on error.
+	 *
+	 * @param int $order_id Order ID supplied by either scheduler.
+	 * @return void
+	 */
+	public function reconcile_advance_order( $order_id ): void {
+		$order_id = (int) $order_id;
+		if ( $order_id <= 0 || isset( self::$reconciling_orders[ $order_id ] ) ) {
+			return;
+		}
+
+		self::$reconciling_orders[ $order_id ] = true;
+		try {
+			$order = wc_get_order( $order_id );
+			if ( $order ) {
+				$this->finalize_advance_order( $order );
+			}
+		} finally {
+			unset( self::$reconciling_orders[ $order_id ] );
+		}
+	}
+
+	/**
+	 * Evaluate automatic finalization preconditions without mutating the order.
+	 *
+	 * The ready outcome means the evidence gates passed, not that money was
+	 * marked paid. The existing finalizer still applies its overcharge guard.
+	 *
+	 * @param \WC_Order $order Order to evaluate.
+	 * @return string Stable outcome code.
+	 */
+	public function evaluate_finalization_outcome( $order ): string {
+		if ( 'yes' !== $order->get_meta( Core::META_AWAITING ) ) {
+			return 'not_awaiting';
 		}
 
 		// The advance only counts as paid once the delegation gateway records
@@ -198,16 +314,65 @@ class Gateway_Bridge {
 		// so the order is never finalized (marked paid / converted to plain
 		// COD) and fulfilment stays blocked.
 		$txn = $order->get_transaction_id();
-		if ( ! $txn ) {
-			return;
+		if ( ! $txn || '' === trim( (string) $txn ) ) {
+			return 'missing_transaction';
 		}
 
 		$gateway_used = (string) $order->get_meta( Core::META_GATEWAY_USED );
 		if ( '' !== $gateway_used && $gateway_used !== $order->get_payment_method() ) {
+			return 'gateway_mismatch';
+		}
+
+		$original = (float) $order->get_meta( Core::META_ORIGINAL_TOTAL );
+		if ( $original <= 0 ) {
+			$original = (float) $order->get_meta( Core::META_ADVANCE ) + (float) $order->get_meta( Core::META_REMAINING );
+		}
+		if ( $original <= 0 && (float) $order->get_total() <= 0 ) {
+			return 'invalid_total';
+		}
+
+		return 'ready';
+	}
+
+	/**
+	 * Persist one diagnostic per consecutive actionable rejection state.
+	 *
+	 * Log only operational identifiers. Never include transaction IDs, request
+	 * data, payment tokens, or customer information in rejection diagnostics.
+	 *
+	 * @param \WC_Order $order   Order rejected by automatic finalization.
+	 * @param string    $outcome Stable outcome code.
+	 * @return void
+	 */
+	private function record_finalization_diagnostic( $order, string $outcome ): void {
+		$previous = (string) $order->get_meta( Core::META_FINALIZATION_DIAGNOSTIC );
+		if ( ! Core::should_log_finalization_diagnostic( $previous, $outcome ) ) {
 			return;
 		}
 
-		$this->do_finalize( $order, $txn, false );
+		$order->update_meta_data( Core::META_FINALIZATION_DIAGNOSTIC, $outcome );
+		$order->save();
+
+		$messages = array(
+			'missing_transaction' => __( 'COD advance finalization is waiting for a gateway transaction ID. Verify payment in the gateway dashboard before fulfilment.', 'cod-shield' ),
+			'gateway_mismatch'    => __( 'COD advance finalization was blocked because the payment method differs from the recorded advance gateway. Verify the payment and gateway before fulfilment.', 'cod-shield' ),
+			'invalid_total'       => __( 'COD advance finalization was blocked because no valid order total could be restored. Review the order totals and payment before fulfilment.', 'cod-shield' ),
+		);
+		$order->add_order_note( $messages[ $outcome ] );
+
+		if ( function_exists( 'wc_get_logger' ) ) {
+			wc_get_logger()->warning(
+				'COD advance finalization rejected.',
+				array(
+					'source'         => 'cod-shield',
+					'order_id'       => $order->get_id(),
+					'code'           => $outcome,
+					'gateway_used'   => (string) $order->get_meta( Core::META_GATEWAY_USED ),
+					'payment_method' => (string) $order->get_payment_method(),
+					'status'         => (string) $order->get_status(),
+				)
+			);
+		}
 	}
 
 	/**
@@ -311,6 +476,8 @@ class Gateway_Bridge {
 			$order->update_meta_data( Core::META_STATUS, 'paid' );
 			$order->update_meta_data( Core::META_REMAINING, $remaining );
 			$order->update_meta_data( Core::META_AWAITING, 'no' );
+			$order->delete_meta_data( Core::META_ATTEMPT_STARTED );
+			$order->delete_meta_data( Core::META_FINALIZATION_DIAGNOSTIC );
 			$order->save();
 			$order->add_order_note(
 				sprintf(
@@ -337,6 +504,8 @@ class Gateway_Bridge {
 		$order->update_meta_data( Core::META_STATUS, 'paid' );
 		$order->update_meta_data( Core::META_REMAINING, max( 0.0, $original - $advance ) );
 		$order->update_meta_data( Core::META_AWAITING, 'no' );
+		$order->delete_meta_data( Core::META_ATTEMPT_STARTED );
+		$order->delete_meta_data( Core::META_FINALIZATION_DIAGNOSTIC );
 		$order->save();
 
 		if ( $manual ) {
@@ -369,6 +538,73 @@ class Gateway_Bridge {
 		if ( $order->has_status( array( 'pending', 'failed', 'processing', 'completed' ) ) ) {
 			$order->update_status( $core->get_option( Core::OPT_ORDER_STATUS, 'processing' ) );
 		}
+	}
+
+	/**
+	 * Explicitly release only a stale attempt with no recorded collection.
+	 *
+	 * Reload after authorization so the screen's previous state is never trusted.
+	 * Keep awaiting=yes: the advance obligation and order-pay proxy must survive.
+	 *
+	 * @param int    $order_id Order id.
+	 * @param string $nonce Order-specific release nonce.
+	 * @return bool Whether the attempt was released.
+	 */
+	public function release_stale_advance( int $order_id, string $nonce ): bool {
+		if ( $order_id <= 0 || ! current_user_can( 'edit_shop_order', $order_id ) || ! wp_verify_nonce( $nonce, Core::NONCE_RELEASE_ATTEMPT . '_' . $order_id ) ) {
+			return false;
+		}
+		$order = wc_get_order( $order_id );
+		$core  = Core::instance();
+		if ( ! $order || 'stale' !== $core->payment_attempt_state( $order ) || ! $order->has_status( array( 'pending', 'failed' ) ) || ! in_array( $order->get_meta( Core::META_STATUS ), array( 'pending', 'failed' ), true ) ) {
+			return false;
+		}
+		$original_raw = $order->get_meta( Core::META_ORIGINAL_TOTAL );
+		$advance_raw  = $order->get_meta( Core::META_ADVANCE );
+		// Corrupted legacy metadata must fail closed: an array or non-numeric
+		// string would cast to a misleading float instead of refusing release.
+		if ( ! is_numeric( $original_raw ) || ! is_numeric( $advance_raw ) ) {
+			return false;
+		}
+		$original = (float) $original_raw;
+		$advance  = (float) $advance_raw;
+		if ( ! is_finite( $original ) || ! is_finite( $advance ) || $advance <= 0 || $original < $advance ) {
+			return false;
+		}
+
+		$order->set_total( $original );
+		$order->set_payment_method( Core::GATEWAY_ID );
+		$order->set_payment_method_title( $core->get_cod_title() );
+		$order->update_meta_data( Core::META_AWAITING, 'yes' );
+		$order->update_meta_data( Core::META_STATUS, 'pending' );
+		$order->update_meta_data( Core::META_ATTEMPT_STARTED, 'no' );
+		$order->delete_meta_data( Core::META_ATTEMPT_STARTED_AT );
+		$order->save();
+		$order->add_order_note(
+			sprintf(
+				/* translators: %d: administrator user ID. */
+				__( 'Stale COD advance attempt released for retry by user #%d. No payment was marked as received. Verify the original attempt with the gateway before retrying.', 'cod-shield' ),
+				get_current_user_id()
+			)
+		);
+		return true;
+	}
+
+	/**
+	 * Admin-post handler for explicit stale attempt recovery.
+	 *
+	 * @return void
+	 */
+	public function handle_release_stale_advance(): void {
+		// phpcs:disable WordPress.Security.NonceVerification.Missing -- Order-specific nonce verified by release_stale_advance before mutation.
+		$order_id = isset( $_POST['cod_shield_order_id'] ) ? absint( wp_unslash( $_POST['cod_shield_order_id'] ) ) : 0;
+		$nonce    = isset( $_POST['cod_shield_release_nonce'] ) && is_string( $_POST['cod_shield_release_nonce'] ) ? sanitize_text_field( wp_unslash( $_POST['cod_shield_release_nonce'] ) ) : '';
+		// phpcs:enable WordPress.Security.NonceVerification.Missing
+		$released = $this->release_stale_advance( $order_id, $nonce );
+		$order    = $order_id ? wc_get_order( $order_id ) : null;
+		$back     = $order && current_user_can( 'edit_shop_order', $order_id ) ? $order->get_edit_order_url() : admin_url( 'edit.php?post_type=shop_order' );
+		wp_safe_redirect( add_query_arg( 'cod_shield_notice', $released ? 'released' : 'release_denied', $back ) );
+		exit;
 	}
 
 	/**
@@ -407,15 +643,17 @@ class Gateway_Bridge {
 		}
 
 		$messages = array(
-			'marked'    => __( 'COD advance marked as paid. The order was converted to Cash on Delivery.', 'cod-shield' ),
-			'denied'    => __( 'You do not have permission to mark an advance as paid.', 'cod-shield' ),
-			'not_found' => __( 'The order could not be found, or its advance is already paid.', 'cod-shield' ),
+			'released'       => __( 'Stale advance attempt released. The advance remains unpaid and can be retried.', 'cod-shield' ),
+			'release_denied' => __( 'Attempt not released. Check your permission, reload the order, and verify that it is stale with no transaction or review flag.', 'cod-shield' ),
+			'marked'         => __( 'COD advance marked as paid. The order was converted to Cash on Delivery.', 'cod-shield' ),
+			'denied'         => __( 'You do not have permission to mark an advance as paid.', 'cod-shield' ),
+			'not_found'      => __( 'The order could not be found, or its advance is already paid.', 'cod-shield' ),
 		);
 		if ( ! isset( $messages[ $notice ] ) ) {
 			return;
 		}
 
-		$class = 'marked' === $notice ? 'notice-success' : 'notice-error';
+		$class = in_array( $notice, array( 'marked', 'released' ), true ) ? 'notice-success' : 'notice-error';
 		echo '<div class="notice ' . esc_attr( $class ) . ' is-dismissible"><p>' . esc_html( $messages[ $notice ] ) . '</p></div>';
 	}
 

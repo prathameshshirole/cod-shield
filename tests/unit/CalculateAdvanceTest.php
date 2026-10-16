@@ -74,6 +74,12 @@ class CalculateAdvanceTest extends TestCase {
 		$this->assertSame( 30.0, Core::calculate_advance( 300, $settings ) );
 	}
 
+	public function testFreshInstallLimitsDoNotChangeLiteralValues() {
+		$this->assertSame( 25.0, Core::calculate_advance( 300, $this->settings( array( 'fixed' => 25, 'min' => 0, 'max' => 0 ) ) ) );
+		$this->assertSame( 30.0, Core::calculate_advance( 300, $this->settings( array( 'mode' => 'percentage', 'min' => 0, 'max' => 0 ) ) ) );
+		$this->assertSame( 2000.0, Core::calculate_advance( 20000, $this->settings( array( 'mode' => 'percentage', 'min' => 0, 'max' => 0 ) ) ) );
+	}
+
 	public function testPercentageFlooredToMin() {
 		$settings = $this->settings( array( 'mode' => 'percentage' ) );
 		$this->assertSame( 49.0, Core::calculate_advance( 300, $settings ) ); // 30 -> min 49.

@@ -32,3 +32,47 @@
 	background: #fff8e5;
 	border-color: #dba617;
 }
+
+/* Definition lists preserve the relationship between each label and amount. */
+.cod-shield-advance-notice .cod-shield-payment-breakdown {
+	margin: 0;
+	padding: 0;
+}
+
+.cod-shield-advance-notice .cod-shield-payment-row {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 4px 16px;
+	padding: 6px 0;
+}
+
+.cod-shield-advance-notice .cod-shield-payment-row + .cod-shield-payment-row {
+	border-top: 1px solid #f1cf7a;
+}
+
+.cod-shield-advance-notice .cod-shield-payment-row dt,
+.cod-shield-advance-notice .cod-shield-payment-row dd {
+	margin: 0;
+	padding: 0;
+	font-weight: 600;
+}
+
+.cod-shield-advance-notice .cod-shield-payment-row dd {
+	font-variant-numeric: tabular-nums;
+	max-width: 100%;
+	overflow-wrap: anywhere;
+}
+
+.cod-shield-advance-notice .cod-shield-payment-explanation,
+.cod-shield-advance-notice .cod-shield-payment-instructions {
+	margin: 10px 0 0;
+	font-size: 0.9em;
+	font-weight: 400;
+	overflow-wrap: anywhere;
+}
+
+.cod-shield-advance-notice .cod-shield-payment-instructions p {
+	margin: 0;
+}

@@ -43,6 +43,13 @@ function cod_shield_manually_load_plugins(): void {
 			return $gateways;
 		}
 	);
+	add_filter(
+		'cod_shield_supported_gateway_classes',
+		static function ( array $supported ): array {
+			$supported['cod_shield_stub'] = array( 'WC_Gateway_COD_Shield_Stub' );
+			return $supported;
+		}
+	);
 
 	$storage = getenv( 'COD_SHIELD_ORDER_STORAGE' );
 	update_option( 'woocommerce_custom_orders_table_enabled', 'hpos' === $storage ? 'yes' : 'no' );
