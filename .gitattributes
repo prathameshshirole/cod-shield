@@ -21,3 +21,4 @@
 /AGENTS.md          export-ignore
 /docs               export-ignore
 /assets             export-ignore
+/.pi-lens.json export-ignore
