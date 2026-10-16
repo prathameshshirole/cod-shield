@@ -52,7 +52,8 @@ class AdvanceNoticeTest extends TestCase {
 	 */
 	public function testClassicCheckoutWrapsMessageInNotice() {
 		$source = $this->read_source( 'includes/class-cod-shield-gateway-cod-advance.php' );
-		$this->assertStringContainsString( '$core->get_advance_breakdown(', $source );
+		$this->assertStringContainsString( '$this->get_payment_amounts()', $source );
+		$this->assertStringContainsString( 'Core::instance()->get_advance_breakdown(', $source );
 	}
 
 	/**

@@ -111,7 +111,7 @@
 			if (!props.eventRegistration || !props.emitResponse) {
 				return;
 			}
-				return props.eventRegistration.onPaymentSetup(() => {
+			return props.eventRegistration.onPaymentSetup(() => {
 				var data = extension();
 				if (inFlight || failed || !data || data.payment_method !== activeMethod() || !data.available) {
 					var reason = data && data.payment_method === activeMethod() && !data.available ? data.cod_ineligibility_message || "" : "";
@@ -148,6 +148,7 @@
 			return !!(data && data.available);
 		},
 		ariaLabel: settings.title,
+		placeOrderButtonLabel: __("Continue to advance payment", "cod-shield"),
 		supports: { features: settings.supports || ["products"] },
 		paymentMethodId: settings.gateway_id,
 	});

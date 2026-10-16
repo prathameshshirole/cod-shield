@@ -13,7 +13,8 @@
 	border-radius: 6px;
 	padding: 10px 14px;
 	margin: 12px 0;
-	font-weight: 600;
+	font-size: 16px;
+	font-weight: 400;
 	line-height: 1.5;
 	color: #1d2327;
 }
@@ -40,10 +41,9 @@
 }
 
 .cod-shield-advance-notice .cod-shield-payment-row {
-	display: flex;
-	flex-wrap: wrap;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
 	align-items: baseline;
-	justify-content: space-between;
 	gap: 4px 16px;
 	padding: 6px 0;
 }
@@ -75,4 +75,36 @@
 
 .cod-shield-advance-notice .cod-shield-payment-instructions p {
 	margin: 0;
+}
+
+/* Keep theme price colours and definition-list floats out of the breakdown. */
+.cod-shield-advance-notice .cod-shield-payment-row dt,
+.cod-shield-advance-notice .cod-shield-payment-row dd {
+	float: none;
+	width: auto;
+	color: #1d2327;
+	text-transform: none;
+}
+
+.cod-shield-advance-notice .cod-shield-payment-row dd,
+.cod-shield-advance-notice .cod-shield-payment-row dd .amount {
+	color: #1d2327;
+	font-size: 1.125em;
+	font-weight: 700;
+	text-align: end;
+}
+
+.cod-shield-advance-notice .cod-shield-payment-row dd .amount {
+	font-size: inherit;
+}
+
+@media (max-width: 380px) {
+	.cod-shield-advance-notice .cod-shield-payment-row {
+		grid-template-columns: minmax(0, 1fr);
+		gap: 2px;
+	}
+
+	.cod-shield-advance-notice .cod-shield-payment-row dd {
+		text-align: start;
+	}
 }

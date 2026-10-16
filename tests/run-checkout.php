@@ -158,6 +158,7 @@ class WC_Payment_Gateway {
 	public $enabled;
 	public $title;
 	public $description;
+	public $order_button_text;
 }
 class WC_Order {}
 class Checkout_Gateway_Entry extends WC_Payment_Gateway {

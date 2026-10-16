@@ -77,6 +77,7 @@ class Checkout {
 		// only (see filter_order_button_text_late()). Harmless no-op on plain
 		// checkouts: no trailing price -> label left untouched.
 		add_filter( 'woocommerce_order_button_text', array( $this, 'filter_order_button_text_late' ), 1000, 1 );
+		add_filter( 'woocommerce_pay_order_button_text', array( $this, 'filter_order_button_text_late' ), 1000, 1 );
 
 		// Server-side validation (classic checkout).
 		add_action( 'woocommerce_checkout_process', array( $this, 'validate_checkout' ) );
@@ -313,6 +314,10 @@ class Checkout {
 				}
 			}
 			return $text;
+		}
+
+		if ( ! $resolved['append_only'] ) {
+			return Core::advance_button_label( html_entity_decode( wp_strip_all_tags( wc_price( $resolved['amount'] ) ), ENT_QUOTES, 'UTF-8' ) );
 		}
 
 		$new_amount = $this->format_button_amount( $text, $resolved['amount'] );

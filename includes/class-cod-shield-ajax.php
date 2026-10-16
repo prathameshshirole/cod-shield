@@ -47,7 +47,7 @@ class Ajax {
 			'cod-shield-checkout',
 			COD_SHIELD_URL . 'public/css/checkout.css',
 			array(),
-			COD_SHIELD_VERSION
+			Core::asset_version( 'public/css/checkout.css' )
 		);
 	}
 

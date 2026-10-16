@@ -63,7 +63,7 @@ class Blocks_Payment_Method_Type extends \Automattic\WooCommerce\Blocks\Payments
 			'wc-payment-method-cod-shield-advance',
 			COD_SHIELD_URL . 'public/js/blocks/payment-method.js',
 			array( 'wc-blocks-registry', 'wc-settings', 'wc-blocks-data-store', 'wc-blocks-checkout', 'wp-element', 'wp-data', 'wp-i18n', 'wp-notices' ),
-			COD_SHIELD_VERSION,
+			Core::asset_version( 'public/js/blocks/payment-method.js' ),
 			true
 		);
 		wp_set_script_translations( 'wc-payment-method-cod-shield-advance', 'cod-shield', COD_SHIELD_PATH . 'languages' );

@@ -20,6 +20,12 @@ function wc_price( $amount, $args = array() ) {
 	$currency = $args['currency'] ?? 'INR';
 	return '<span class="amount">' . $currency . ' ' . number_format( $amount, 2, '.', '' ) . '</span>';
 }
+function get_woocommerce_currency() {
+	return 'INR';
+}
+function wp_strip_all_tags( $text ) {
+	return trim( strip_tags( (string) $text ) );
+}
 function wp_kses_post( $html ) {
 	$GLOBALS['breakdown_sanitized'][] = $html;
 	return strip_tags( preg_replace( '#<script[^>]*>.*?</script>#is', '', $html ), '<span><strong><p>' );
@@ -45,6 +51,7 @@ class WC_Payment_Gateway {
 	public $enabled;
 	public $title;
 	public $description;
+	public $order_button_text;
 }
 
 require_once __DIR__ . '/../includes/class-cod-shield-core.php';

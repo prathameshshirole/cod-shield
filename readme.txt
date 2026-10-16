@@ -7,7 +7,7 @@ Requires PHP: 8.1
 Requires Plugins: woocommerce
 WC requires at least: 8.0
 WC tested up to: 10.9
-Stable tag: 2.1.0
+Stable tag: 2.1.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -88,6 +88,15 @@ Yes. The amount is always calculated and re-validated server-side at order creat
 Yes. CartFlows checkout steps use the native WooCommerce cart, so the advance is calculated from the same total CartFlows shows in the order review. On a CartFlows step the "Place order" button shows the advance (what is charged right now) instead of the full order total, even though CartFlows appends the full total to the button label when its "show price on button" setting is enabled.
 
 == Changelog ==
+
+= 2.1.2 =
+* **Combined: reliability, eligibility, and checkout clarity.** Includes the 2.1.0 COD eligibility and delayed-payment recovery features together with the 2.1.1 responsive payment breakdown, content-versioned assets, clearer advance-payment buttons, and advance-cap messaging.
+
+= 2.1.1 =
+* Clearer, responsive advance-payment breakdown with readable amounts.
+* Content-versioned frontend assets prevent stale checkout styles.
+* Advance-payment buttons explain the next step on classic and block checkout.
+* Displays the advance cap when it changes the percentage amount.
 
 = 2.1.0 =
 * **Added: high-priority COD eligibility rules.** Exclude shipping zones, shipping methods (optionally per instance like `flat_rate:23`), products, categories, and shipping classes. Any matching cart item or selected shipping method hides COD and the advance proxy with a clear customer-facing reason in classic checkout, Checkout Blocks, and the Store API. The proxy can no longer resurrect native COD removed by WooCommerce's own "enable for methods" shipping restriction or virtual-cart rules.
@@ -187,6 +196,9 @@ Yes. CartFlows checkout steps use the native WooCommerce cart, so the advance is
 * Initial release.
 
 == Upgrade Notice ==
+
+= 2.1.2 =
+Combines the 2.1.0 eligibility and payment-recovery release with the 2.1.1 checkout UI and asset-cache improvements.
 
 = 2.1.0 =
 * Adds COD eligibility exclusion rules (shipping zones/methods, products, categories, shipping classes) with customer-facing reasons, native COD shipping-restriction parity, and payment reliability improvements for delayed or lost gateway confirmations.

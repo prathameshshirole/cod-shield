@@ -377,6 +377,9 @@ Bug reports and feature requests: use the [issue templates](.github/ISSUE_TEMPLA
 
 See [readme.txt](readme.txt) for the full changelog. Notable recent releases:
 
+- **2.1.2** — Combined COD eligibility and payment-recovery hardening with responsive checkout messaging and content-versioned assets
+- **2.1.1** — Improved the payment breakdown, advance-cap messaging, checkout button copy, and frontend cache invalidation
+- **2.1.0** — Added high-priority COD exclusions and safe delayed-payment reconciliation
 - **2.0.4** — Added explicit safeguards for official Razorpay automatic-capture checkout compatibility
 - **2.0.3** — Fixed Cashfree webhook/return capture races and hardened advance payment lifecycle handling
 - **2.0.2** — Restored official Cashfree hosted checkout support in the advance gateway selector

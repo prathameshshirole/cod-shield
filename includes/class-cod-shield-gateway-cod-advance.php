@@ -39,6 +39,8 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 		$this->enabled            = 'yes'; // Availability is governed by is_available().
 		$this->title              = Core::instance()->get_cod_title();
 		$this->description        = '';
+		$amounts                  = $this->get_payment_amounts();
+		$this->order_button_text  = Core::advance_button_label( html_entity_decode( wp_strip_all_tags( wc_price( $amounts['advance'], array( 'currency' => $amounts['currency'] ) ) ), ENT_QUOTES, 'UTF-8' ) );
 	}
 
 	/**
@@ -81,10 +83,20 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 	 * @return string
 	 */
 	public function get_description() {
+		$amounts = $this->get_payment_amounts();
+		return Core::instance()->get_advance_breakdown( $amounts['advance'], $amounts['remaining'], $amounts['currency'] );
+	}
+
+	/**
+	 * Resolve display amounts from the live cart or recorded retry order.
+	 *
+	 * @return array Payment amounts and currency.
+	 */
+	private function get_payment_amounts() {
 		$core     = Core::instance();
 		$total    = $core->get_cart_total();
 		$advance  = $core->calculate_advance( $total );
-		$currency = '';
+		$currency = function_exists( 'get_woocommerce_currency' ) ? get_woocommerce_currency() : '';
 
 		// Order-pay endpoint: there is no cart, so read the amounts recorded
 		// on the order when the advance was initiated instead of deriving
@@ -108,7 +120,11 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 			}
 		}
 
-		return $core->get_advance_breakdown( $advance, max( 0.0, $total - $advance ), $currency );
+		return array(
+			'advance'   => $advance,
+			'remaining' => max( 0.0, $total - $advance ),
+			'currency'  => $currency,
+		);
 	}
 
 	/**

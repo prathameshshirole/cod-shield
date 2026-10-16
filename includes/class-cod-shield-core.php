@@ -233,6 +233,29 @@ class Core {
 	}
 
 	/**
+	 * Version assets by content so rebuilt packages cannot reuse stale styles.
+	 *
+	 * @param string $relative Asset path relative to the plugin root.
+	 * @return string
+	 */
+	public static function asset_version( $relative ) {
+		$file = COD_SHIELD_PATH . $relative;
+		$hash = is_file( $file ) ? md5_file( $file ) : false;
+		return COD_SHIELD_VERSION . ( $hash ? '-' . substr( $hash, 0, 12 ) : '' );
+	}
+
+	/**
+	 * Label the next step using an already formatted plain-text amount.
+	 *
+	 * @param string $amount Plain-text payment amount.
+	 * @return string
+	 */
+	public static function advance_button_label( $amount ) {
+		/* translators: %s: advance amount payable online. */
+		return sprintf( __( 'Continue to pay %s', 'cod-shield' ), $amount );
+	}
+
+	/**
 	 * Customer-facing COD payment title.
 	 *
 	 * A blank plugin setting preserves the supplied native gateway title. The
@@ -914,6 +937,20 @@ class Core {
 			);
 		}
 
+		$policy = '';
+		if ( 'percentage' === $settings['mode'] && $advance > 0 && ! ( function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url( 'order-pay' ) ) ) {
+			$percentage_amount = ( (float) $advance + max( 0.0, (float) $remaining ) ) * (float) $settings['percentage'] / 100;
+			if ( $settings['max'] > 0 && $percentage_amount > $settings['max'] && abs( (float) $advance - (float) $settings['max'] ) < 0.01 ) {
+				/* translators: %s: configured maximum advance amount. */
+				$policy = sprintf( __( 'Advance capped at %s.', 'cod-shield' ), $now );
+			} elseif ( $settings['min'] > 0 && $percentage_amount < $settings['min'] && abs( (float) $advance - (float) $settings['min'] ) < 0.01 ) {
+				/* translators: %s: configured minimum advance amount. */
+				$policy = sprintf( __( 'Minimum advance: %s.', 'cod-shield' ), $now );
+			}
+		}
+		if ( '' !== $policy ) {
+			$message = '<p>' . $policy . '</p>' . $message;
+		}
 		return self::render_advance_breakdown( wp_kses_post( $now ), wp_kses_post( $later ), wp_kses_post( $message ) );
 	}
 
@@ -931,6 +968,7 @@ class Core {
 		$html .= '<div class="cod-shield-payment-row"><dt>' . htmlspecialchars( __( 'Pay now', 'cod-shield' ), ENT_QUOTES, 'UTF-8' ) . '</dt><dd>' . $advance_html . '</dd></div>';
 		$html .= '<div class="cod-shield-payment-row"><dt>' . htmlspecialchars( __( 'Pay on delivery', 'cod-shield' ), ENT_QUOTES, 'UTF-8' ) . '</dt><dd>' . $remaining_html . '</dd></div>';
 		$html .= '</dl><p class="cod-shield-payment-explanation">' . htmlspecialchars( __( 'This advance is part of your order total.', 'cod-shield' ), ENT_QUOTES, 'UTF-8' ) . '</p>';
+		$html .= '<p class="cod-shield-payment-explanation">' . htmlspecialchars( __( 'Pay the advance securely online, then pay the balance when your order arrives.', 'cod-shield' ), ENT_QUOTES, 'UTF-8' ) . '</p>';
 		if ( '' !== trim( $message_html ) ) {
 			$html .= '<div class="cod-shield-payment-instructions">' . $message_html . '</div>';
 		}
