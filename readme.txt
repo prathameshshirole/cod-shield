@@ -7,7 +7,7 @@ Requires PHP: 8.1
 Requires Plugins: woocommerce
 WC requires at least: 8.0
 WC tested up to: 10.9
-Stable tag: 2.1.2
+Stable tag: 2.1.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -88,6 +88,9 @@ Yes. The amount is always calculated and re-validated server-side at order creat
 Yes. CartFlows checkout steps use the native WooCommerce cart, so the advance is calculated from the same total CartFlows shows in the order review. On a CartFlows step the "Place order" button shows the advance (what is charged right now) instead of the full order total, even though CartFlows appends the full total to the button label when its "show price on button" setting is enabled.
 
 == Changelog ==
+
+= 2.1.3 =
+* **Improved: clearer COD confirmation at checkout.** The advance option and payment button now show the exact amount needed to confirm COD, the payment split uses one concise explanation for UPI, cards and net banking, and the notice uses a calmer trust-focused treatment instead of warning colours.
 
 = 2.1.2 =
 * **Combined: reliability, eligibility, and checkout clarity.** Includes the 2.1.0 COD eligibility and delayed-payment recovery features together with the 2.1.1 responsive payment breakdown, content-versioned assets, clearer advance-payment buttons, and advance-cap messaging.
@@ -196,6 +199,9 @@ Yes. CartFlows checkout steps use the native WooCommerce cart, so the advance is
 * Initial release.
 
 == Upgrade Notice ==
+
+= 2.1.3 =
+Makes the COD advance choice and next payment step clearer on classic and block checkout.
 
 = 2.1.2 =
 Combines the 2.1.0 eligibility and payment-recovery release with the 2.1.1 checkout UI and asset-cache improvements.

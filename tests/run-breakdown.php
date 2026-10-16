@@ -109,7 +109,7 @@ $gateway = new Gateway_COD_Advance();
 $html = $gateway->get_description();
 breakdown_contains( $html, '<dt>Pay now</dt><dd><span class="amount">INR 99.00</span></dd>' );
 breakdown_contains( $html, '<dt>Pay on delivery</dt><dd><span class="amount">INR 901.00</span></dd>' );
-breakdown_contains( $html, 'This advance is part of your order total.' );
+breakdown_contains( $html, 'Pay by UPI, card or net banking to confirm your COD order. This amount is included in your order total.' );
 breakdown_excludes( $html, 'cod-shield-payment-instructions' );
 
 $GLOBALS['breakdown_options'][ Core::OPT_MSG_ADV_ENABLED ] = 'no';

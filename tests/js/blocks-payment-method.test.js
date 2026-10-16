@@ -16,7 +16,7 @@ const vm = require("node:vm");
 	let notices = {};
 	const window = {
 		wc: {
-			wcSettings: { getSetting: () => ({ gateway_id: method, title: "COD", message: "initial" }) },
+			wcSettings: { getSetting: () => ({ gateway_id: method, title: "Confirm COD with ₹240 now", message: "initial", button_label: "Pay ₹240 & confirm COD" }) },
 			wcBlocksRegistry: { registerPaymentMethod: (value) => { registration = value; } },
 			wcBlocksData: { cartStore: "cart", paymentStore: "payment" },
 			blocksCheckout: { extensionCartUpdate: (args) => { requests.push(args); return new Promise((resolve, reject) => completions.push({ resolve, reject })); } },
@@ -28,6 +28,8 @@ const vm = require("node:vm");
 		},
 	};
 	vm.runInNewContext(fs.readFileSync("public/js/blocks/payment-method.js", "utf8"), { window, Set });
+	assert.equal(registration.label.props.children, "Confirm COD with ₹240 now", "Payment method title states the amount needed to confirm COD");
+	assert.equal(registration.placeOrderButtonLabel, "Pay ₹240 & confirm COD", "Blocks CTA states the amount and outcome");
 	assert.equal(requests.length, 1);
 	assert.ok(validationErrors["cod-shield-payment-totals"], "Every payment method must wait for updated totals");
 	assert.equal(requests[0].overwriteDirtyCustomerData, false, "Cart refresh must preserve unsaved customer input");

@@ -37,10 +37,11 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 		$this->has_fields         = false;
 		$this->supports           = array( 'products' );
 		$this->enabled            = 'yes'; // Availability is governed by is_available().
-		$this->title              = Core::instance()->get_cod_title();
 		$this->description        = '';
 		$amounts                  = $this->get_payment_amounts();
-		$this->order_button_text  = Core::advance_button_label( html_entity_decode( wp_strip_all_tags( wc_price( $amounts['advance'], array( 'currency' => $amounts['currency'] ) ) ), ENT_QUOTES, 'UTF-8' ) );
+		$advance_text             = html_entity_decode( wp_strip_all_tags( wc_price( $amounts['advance'], array( 'currency' => $amounts['currency'] ) ) ), ENT_QUOTES, 'UTF-8' );
+		$this->title              = Core::advance_checkout_title( $advance_text );
+		$this->order_button_text  = Core::advance_button_label( $advance_text );
 	}
 
 	/**

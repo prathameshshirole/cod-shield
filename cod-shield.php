@@ -3,7 +3,7 @@
  * Plugin Name:       SureOrder — COD Advance Payments for WooCommerce
  * Plugin URI:        https://wordpress.org/plugins/cod-shield/
  * Description:       Reduce COD RTO by collecting a partial advance payment through one compatible WooCommerce gateway, with simple setup, optional eligibility rules, and clear order visibility.
- * Version:           2.1.2
+ * Version:           2.1.3
  * Author:            Prathamesh Shirole
  * Author URI:        https://profiles.wordpress.org/prathaverse/
  * License:           GPL v2 or later
@@ -38,7 +38,7 @@ along with SureOrder. If not, see https://www.gnu.org/licenses/.
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'COD_SHIELD_VERSION', '2.1.2' );
+define( 'COD_SHIELD_VERSION', '2.1.3' );
 define( 'COD_SHIELD_FILE', __FILE__ );
 define( 'COD_SHIELD_PATH', plugin_dir_path( __FILE__ ) );
 define( 'COD_SHIELD_URL', plugin_dir_url( __FILE__ ) );

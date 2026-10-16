@@ -148,7 +148,7 @@
 			return !!(data && data.available);
 		},
 		ariaLabel: settings.title,
-		placeOrderButtonLabel: __("Continue to advance payment", "cod-shield"),
+		placeOrderButtonLabel: settings.button_label || __("Pay advance & confirm COD", "cod-shield"),
 		supports: { features: settings.supports || ["products"] },
 		paymentMethodId: settings.gateway_id,
 	});

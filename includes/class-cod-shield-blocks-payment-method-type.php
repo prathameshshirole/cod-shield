@@ -78,14 +78,16 @@ class Blocks_Payment_Method_Type extends \Automattic\WooCommerce\Blocks\Payments
 	public function get_payment_method_data() {
 		$core = Core::instance();
 
-		$total     = $core->get_cart_total();
-		$advance   = $core->calculate_advance( $total );
-		$remaining = max( 0.0, $total - $advance );
-		$message   = $core->get_advance_breakdown( $advance, $remaining );
+		$total         = $core->get_cart_total();
+		$advance       = $core->calculate_advance( $total );
+		$remaining     = max( 0.0, $total - $advance );
+		$message       = $core->get_advance_breakdown( $advance, $remaining );
+		$advance_plain = html_entity_decode( wp_strip_all_tags( wc_price( $advance ) ), ENT_QUOTES, 'UTF-8' );
 
 		return array(
 			'gateway_id'      => Core::GATEWAY_ID,
-			'title'           => $core->get_cod_title(),
+			'title'           => Core::advance_checkout_title( $advance_plain ),
+			'button_label'    => Core::advance_button_label( $advance_plain ),
 			'description'     => $message,
 			'message'         => $message,
 			'advance'         => $advance,
@@ -94,7 +96,7 @@ class Blocks_Payment_Method_Type extends \Automattic\WooCommerce\Blocks\Payments
 			'remaining_html'  => wc_price( $remaining ),
 			// Plain-text amounts for the no-message fallback (it is rendered as
 			// a React text child — HTML here would show up as raw markup).
-			'advance_plain'   => wp_strip_all_tags( wc_price( $advance ) ),
+			'advance_plain'   => $advance_plain,
 			'remaining_plain' => wp_strip_all_tags( wc_price( $remaining ) ),
 			'supports'        => array( 'products' ),
 		);

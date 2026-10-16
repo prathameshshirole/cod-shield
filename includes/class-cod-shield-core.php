@@ -252,7 +252,18 @@ class Core {
 	 */
 	public static function advance_button_label( $amount ) {
 		/* translators: %s: advance amount payable online. */
-		return sprintf( __( 'Continue to pay %s', 'cod-shield' ), $amount );
+		return sprintf( __( 'Pay %s & confirm COD', 'cod-shield' ), $amount );
+	}
+
+	/**
+	 * Name the advance option by the amount needed to confirm COD.
+	 *
+	 * @param string $amount Plain-text payment amount.
+	 * @return string
+	 */
+	public static function advance_checkout_title( $amount ) {
+		/* translators: %s: advance amount payable online. */
+		return sprintf( __( 'Confirm COD with %s now', 'cod-shield' ), $amount );
 	}
 
 	/**
@@ -967,8 +978,7 @@ class Core {
 		$html .= '<dl class="cod-shield-payment-breakdown">';
 		$html .= '<div class="cod-shield-payment-row"><dt>' . htmlspecialchars( __( 'Pay now', 'cod-shield' ), ENT_QUOTES, 'UTF-8' ) . '</dt><dd>' . $advance_html . '</dd></div>';
 		$html .= '<div class="cod-shield-payment-row"><dt>' . htmlspecialchars( __( 'Pay on delivery', 'cod-shield' ), ENT_QUOTES, 'UTF-8' ) . '</dt><dd>' . $remaining_html . '</dd></div>';
-		$html .= '</dl><p class="cod-shield-payment-explanation">' . htmlspecialchars( __( 'This advance is part of your order total.', 'cod-shield' ), ENT_QUOTES, 'UTF-8' ) . '</p>';
-		$html .= '<p class="cod-shield-payment-explanation">' . htmlspecialchars( __( 'Pay the advance securely online, then pay the balance when your order arrives.', 'cod-shield' ), ENT_QUOTES, 'UTF-8' ) . '</p>';
+		$html .= '</dl><p class="cod-shield-payment-explanation">' . htmlspecialchars( __( 'Pay by UPI, card or net banking to confirm your COD order. This amount is included in your order total.', 'cod-shield' ), ENT_QUOTES, 'UTF-8' ) . '</p>';
 		if ( '' !== trim( $message_html ) ) {
 			$html .= '<div class="cod-shield-payment-instructions">' . $message_html . '</div>';
 		}

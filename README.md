@@ -377,6 +377,7 @@ Bug reports and feature requests: use the [issue templates](.github/ISSUE_TEMPLA
 
 See [readme.txt](readme.txt) for the full changelog. Notable recent releases:
 
+- **2.1.3** — Reworked the COD advance title, payment explanation, CTA and notice styling around the exact amount due now
 - **2.1.2** — Combined COD eligibility and payment-recovery hardening with responsive checkout messaging and content-versioned assets
 - **2.1.1** — Improved the payment breakdown, advance-cap messaging, checkout button copy, and frontend cache invalidation
 - **2.1.0** — Added high-priority COD exclusions and safe delayed-payment reconciliation

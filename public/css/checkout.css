@@ -7,9 +7,9 @@
    glance. Explicit dark text on the tinted surface keeps contrast safe even
    on dark-themed stores. */
 .cod-shield-advance-notice {
-	background: #fff8e5;
-	border: 1px solid #f1cf7a;
-	border-left: 4px solid #dba617;
+	background: #f4fbf7;
+	border: 1px solid #c6e5d1;
+	border-left: 4px solid #237a4b;
 	border-radius: 6px;
 	padding: 10px 14px;
 	margin: 12px 0;
@@ -49,7 +49,7 @@
 }
 
 .cod-shield-advance-notice .cod-shield-payment-row + .cod-shield-payment-row {
-	border-top: 1px solid #f1cf7a;
+	border-top: 1px solid #c6e5d1;
 }
 
 .cod-shield-advance-notice .cod-shield-payment-row dt,

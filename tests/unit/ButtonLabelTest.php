@@ -26,6 +26,14 @@ class ButtonLabelTest extends TestCase {
 	 */
 	private const NBSP = "\xC2\xA0\xC2\xA0";
 
+	public function testAdvanceButtonConfirmsCodWithExactAmount() {
+		$this->assertSame( 'Pay ₹240 & confirm COD', Core::advance_button_label( '₹240' ) );
+	}
+
+	public function testAdvanceCheckoutTitleLeadsWithExactAmount() {
+		$this->assertSame( 'Confirm COD with ₹240 now', Core::advance_checkout_title( '₹240' ) );
+	}
+
 	/*
 	 * replace_button_price()
 	 */

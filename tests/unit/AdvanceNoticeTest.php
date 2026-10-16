@@ -73,7 +73,8 @@ class AdvanceNoticeTest extends TestCase {
 		$html = \CodShield\Core::render_advance_breakdown( '₹99.00', '₹901.00' );
 		$this->assertStringContainsString( '<dt>Pay now</dt><dd>₹99.00</dd>', $html );
 		$this->assertStringContainsString( '<dt>Pay on delivery</dt><dd>₹901.00</dd>', $html );
-		$this->assertStringContainsString( 'This advance is part of your order total.', $html );
+		$this->assertStringContainsString( 'Pay by UPI, card or net banking to confirm your COD order. This amount is included in your order total.', $html );
+		$this->assertStringNotContainsString( 'Pay the advance securely online', $html );
 		$this->assertStringNotContainsString( 'cod-shield-payment-instructions', $html );
 	}
 
