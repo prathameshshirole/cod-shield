@@ -36,7 +36,7 @@ if [[ ! -f "$WP_CORE_DIR/wp-settings.php" ]]; then
 fi
 
 if [[ ! -f "$WP_TESTS_DIR/includes/functions.php" ]]; then
-	mkdir -p "$WP_TESTS_DIR/includes" "$WP_TESTS_DIR/data"
+	mkdir -p "$WP_TESTS_DIR"
 	svn export --quiet "${WP_TESTS_BASE}/tests/phpunit/includes/" "$WP_TESTS_DIR/includes"
 	svn export --quiet "${WP_TESTS_BASE}/tests/phpunit/data/" "$WP_TESTS_DIR/data"
 fi
