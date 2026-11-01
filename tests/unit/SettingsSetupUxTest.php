@@ -32,10 +32,10 @@ class SettingsSetupUxTest extends TestCase {
 	public function test_main_tab_contains_three_steps_and_status(): void {
 		$source = $this->settings_source();
 
-		$this->assertStringContainsString( "''               => __( 'Setup', 'cod-shield' )", $source );
-		$this->assertStringContainsString( "__( '1. Enable Cash on Delivery', 'cod-shield' )", $source );
-		$this->assertStringContainsString( "__( '2. Choose the advance', 'cod-shield' )", $source );
-		$this->assertStringContainsString( "__( '3. Select an advance gateway', 'cod-shield' )", $source );
+		$this->assertStringContainsString( "'' => __( 'Setup', 'cod-shield' )", $source );
+		$this->assertStringContainsString( "__( 'Enable partial COD', 'cod-shield' )", $source );
+		$this->assertStringContainsString( "__( 'Advance type', 'cod-shield' )", $source );
+		$this->assertStringContainsString( "__( 'Advance gateway', 'cod-shield' )", $source );
 		$this->assertStringContainsString( "'type' => 'cod_shield_configuration_status'", $source );
 	}
 
@@ -76,9 +76,8 @@ class SettingsSetupUxTest extends TestCase {
 	public function test_advanced_rules_include_clear_eligibility_controls(): void {
 		$source = $this->settings_source();
 
-		$this->assertStringContainsString( "__( 'Minimum order value for COD', 'cod-shield' )", $source );
-		$this->assertStringContainsString( "__( 'Maximum order value for COD', 'cod-shield' )", $source );
-		$this->assertStringContainsString( "__( 'Excluded delivery pincodes', 'cod-shield' )", $source );
-		$this->assertStringContainsString( "preg_replace( '/[^A-Z0-9*,\\r\\n ]+/', ' ', \$rules )", $source );
+		$this->assertStringNotContainsString( "__( 'Minimum order value for COD', 'cod-shield' )", $source );
+		$this->assertStringNotContainsString( "__( 'Maximum order value for COD', 'cod-shield' )", $source );
+		$this->assertStringNotContainsString( "__( 'Excluded delivery pincodes', 'cod-shield' )", $source );
 	}
 }

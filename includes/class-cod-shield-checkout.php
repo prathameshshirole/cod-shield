@@ -91,10 +91,8 @@ class Checkout {
 		add_filter( 'woocommerce_store_api_cart_errors', array( $this, 'filter_store_api_cart_errors' ), 10, 2 );
 
 		// Thank-you page confirmation of both amounts.
-		add_action( 'woocommerce_thankyou', array( $this, 'render_thankyou_summary' ), 10, 1 );
 
 		// Cart fees are visible before submission in classic and block checkout.
-		add_action( 'woocommerce_cart_calculate_fees', array( $this, 'maybe_add_cod_fee' ) );
 		add_filter( 'rest_request_before_callbacks', array( $this, 'track_store_api_request' ), 10, 3 );
 	}
 
@@ -142,7 +140,7 @@ class Checkout {
 		}
 
 		if ( ! $core->cod_enabled() ) {
-			unset( $gateways['cod'], $gateways[ Core::GATEWAY_ID ] );
+			unset( $gateways[ Core::GATEWAY_ID ] );
 			return $gateways;
 		}
 
@@ -574,8 +572,8 @@ class Checkout {
 		if ( Core::GATEWAY_ID !== $order->get_payment_method() ) {
 			return;
 		}
-		if ( 'yes' === $order->get_meta( Core::META_AWAITING ) ) {
-			return; // Already attached.
+		if ( 'yes' === $order->get_meta( Core::META_AWAITING ) || ( $order->get_meta( Core::META_ATTEMPT_STARTED_AT ) && (float) $order->get_meta( Core::META_ADVANCE ) > 0 ) ) {
+			return; // Preserve the agreement on resumed or failed attempts.
 		}
 
 		$core    = Core::instance();
@@ -583,7 +581,10 @@ class Checkout {
 		$advance = $core->calculate_advance( $total );
 
 		$order->update_meta_data( Core::META_ADVANCE, $advance );
-		$order->update_meta_data( Core::META_MODE, $core->get_option( Core::OPT_MODE, 'disabled' ) );
+		$mode = $core->get_option( Core::OPT_MODE, 'disabled' );
+		$order->update_meta_data( Core::META_MODE, $mode );
+		$order->update_meta_data( Core::META_VALUE, $core->get_option( 'percentage' === $mode ? Core::OPT_PERCENTAGE : Core::OPT_FIXED, 0 ) );
+		$order->update_meta_data( Core::META_RECEIVED, 0 );
 		$order->update_meta_data( Core::META_ORIGINAL_TOTAL, $total );
 		$order->update_meta_data( Core::META_REMAINING, max( 0.0, $total - $advance ) );
 		$order->update_meta_data( Core::META_STATUS, 'pending' );
@@ -633,7 +634,7 @@ class Checkout {
 			);
 		}
 
-		if ( $core->advance_is_required( $total ) && ! $core->advance_flow_active( $total ) ) {
+		if ( $core->advance_is_required( $total ) && ( 'cod' === $method || ! $core->advance_flow_active( $total ) ) ) {
 			$errors->add(
 				'cod_shield_unavailable',
 				__( 'Cash on Delivery is temporarily unavailable. Please choose another payment method.', 'cod-shield' )
@@ -740,34 +741,5 @@ class Checkout {
 			'yes' === $settings['fee_taxable'],
 			(string) $settings['fee_tax_class']
 		);
-	}
-
-	/**
-	 * Thank-you page summary showing both amounts for finalized advance orders.
-	 *
-	 * @param int $order_id Order id.
-	 * @return void
-	 */
-	public function render_thankyou_summary( $order_id ) {
-		$order = wc_get_order( $order_id );
-		if ( ! $order || 'cod' !== $order->get_payment_method() ) {
-			return;
-		}
-
-		$advance = (float) $order->get_meta( Core::META_ADVANCE );
-		$status  = $order->get_meta( Core::META_STATUS );
-		if ( 'paid' !== $status || $advance <= 0 ) {
-			return;
-		}
-
-		$remaining = (float) $order->get_meta( Core::META_REMAINING );
-
-		echo '<section class="cod-shield-thankyou">';
-		echo '<h2 class="woocommerce-order-details__title">' . esc_html__( 'Payment summary', 'cod-shield' ) . '</h2>';
-		echo '<ul class="woocommerce-order-overview woocommerce-thankyou-order-details">';
-		echo '<li>' . esc_html__( 'Advance paid:', 'cod-shield' ) . ' <strong>' . wp_kses_post( wc_price( $advance ) ) . '</strong>';
-		echo '</li>';
-		echo '<li>' . esc_html__( 'Payable on delivery:', 'cod-shield' ) . ' <strong>' . wp_kses_post( wc_price( $remaining ) ) . '</strong></li>';
-		echo '</ul></section>';
 	}
 }

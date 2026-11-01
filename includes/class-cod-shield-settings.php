@@ -28,25 +28,10 @@ class Settings extends \WC_Settings_Page {
 
 		parent::__construct();
 
-		// Custom sanitization for numeric / percentage / gateway fields.
-		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_COD_TITLE, array( $this, 'sanitize_cod_title' ), 10, 3 );
+		// Preserve the existing amount options and single gateway selection.
 		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_FIXED, array( $this, 'sanitize_positive_number' ), 10, 3 );
 		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_PERCENTAGE, array( $this, 'sanitize_percentage' ), 10, 3 );
-		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_MIN, array( $this, 'sanitize_positive_number' ), 10, 3 );
-		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_MAX, array( $this, 'sanitize_positive_number' ), 10, 3 );
-		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_THRESHOLD, array( $this, 'sanitize_positive_number' ), 10, 3 );
-		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_STALE_ATTEMPT_MINUTES, array( $this, 'sanitize_stale_attempt_minutes' ), 10, 3 );
 		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_GATEWAYS, array( $this, 'sanitize_gateways' ), 10, 3 );
-		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_FEE_AMOUNT, array( $this, 'sanitize_positive_number' ), 10, 3 );
-		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_FEE_PERCENTAGE, array( $this, 'sanitize_percentage' ), 10, 3 );
-		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Core::OPT_FEE_TAX_CLASS, array( $this, 'sanitize_tax_class' ), 10, 3 );
-		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Eligibility::OPT_MAXIMUM, array( $this, 'sanitize_positive_number' ), 10, 3 );
-		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Eligibility::OPT_EXCLUDED_PINCODES, array( $this, 'sanitize_pincode_rules' ), 10, 3 );
-		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Eligibility::OPT_EXCLUDED_SHIPPING_ZONES, array( $this, 'sanitize_id_list_field' ), 10, 3 );
-		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Eligibility::OPT_EXCLUDED_SHIPPING_METHODS, array( $this, 'sanitize_shipping_method_list_field' ), 10, 3 );
-		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Eligibility::OPT_EXCLUDED_PRODUCTS, array( $this, 'sanitize_id_list_field' ), 10, 3 );
-		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Eligibility::OPT_EXCLUDED_CATEGORIES, array( $this, 'sanitize_id_list_field' ), 10, 3 );
-		add_filter( 'woocommerce_admin_settings_sanitize_option_' . Eligibility::OPT_EXCLUDED_SHIPPING_CLASSES, array( $this, 'sanitize_id_list_field' ), 10, 3 );
 
 		add_action( 'woocommerce_admin_field_cod_shield_gateway_select', array( $this, 'handle_gateway_select_field' ) );
 		add_action( 'woocommerce_admin_field_cod_shield_configuration_status', array( $this, 'handle_configuration_status_field' ) );
@@ -89,55 +74,28 @@ class Settings extends \WC_Settings_Page {
 	}
 
 	/**
-	 * Get the settings for a section.
+	 * Return only the four-control setup. Retired section URLs cannot save rules.
 	 *
-	 * Overrides WC_Settings_Page::get_settings() (which otherwise builds the
-	 * method name as `get_settings_for_{section}_section`) so hyphenated
-	 * section slugs resolve to their underscore-form method. Without this,
-	 * the "Extra COD Fee" (cod-fee) and "Order Handling" (order-handling)
-	 * tabs render empty because a PHP method name cannot contain a hyphen and
-	 * WC falls through to the empty section registry.
-	 *
-	 * Both WC_Admin_Settings::output() and the save flow call this method, so
-	 * the override fixes display and saving. The woocommerce_get_settings_
-	 * filter is preserved for third-party extensions.
-	 *
-	 * @param string $section Section slug ('' for the default section).
+	 * @param string $section Section slug.
 	 * @return array<int,array<string,mixed>>
 	 */
 	public function get_settings( $section = '' ) {
-		$method = Core::settings_method_for_section( $section );
-		if ( method_exists( $this, $method ) ) {
-			$settings = $this->$method();
-		} else {
-			$settings = array(); // Unknown section — nothing to render.
-		}
-		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WooCommerce's documented settings filter (woocommerce_get_settings_{id}); the prefix is dictated by WC core.
+		$settings = '' === $section ? $this->get_settings_for_default_section() : array();
+		// phpcs:ignore WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedHooknameFound -- WooCommerce settings extension filter.
 		return apply_filters( 'woocommerce_get_settings_' . $this->id, $settings, $section );
 	}
 
 	/**
-	 * Sections.
+	 * One setup screen, without optional rule sections.
 	 *
 	 * @return array<string,string>
 	 */
 	protected function get_own_sections() {
-		return array(
-			''               => __( 'Setup', 'cod-shield' ),
-			'advance'        => __( 'Advanced Rules', 'cod-shield' ),
-			// Underscore slugs: WC builds the settings method as
-			// get_settings_for_{section}_section, and a PHP method name cannot
-			// contain a hyphen. Underscore slugs resolve natively even if WC ever
-			// drops the deprecated get_settings() path the hyphen-mapping
-			// override rides on (see Core::settings_method_for_section()).
-			'cod_fee'        => __( 'COD Fee', 'cod-shield' ),
-			'messaging'      => __( 'Messages', 'cod-shield' ),
-			'order_handling' => __( 'Order Handling', 'cod-shield' ),
-		);
+		return array( '' => __( 'Setup', 'cod-shield' ) );
 	}
 
 	/**
-	 * Setup section: the minimum three-step configuration.
+	 * Setup section: enable, calculation type, value, and existing gateway.
 	 *
 	 * @return array<int,array<string,mixed>>
 	 */
@@ -158,7 +116,7 @@ class Settings extends \WC_Settings_Page {
 				// is not part of an installed plugin.
 				'title' => __( 'Set up SureOrder', 'cod-shield' ),
 				'type'  => 'title',
-				'desc'  => '<img src="' . esc_url( COD_SHIELD_URL . 'admin/img/icon-128x128.png' ) . '" alt="" class="cod-shield-settings-logo" /> ' . __( 'Collect a small online advance to confirm COD orders. Complete the three steps below; optional controls are in the other tabs.', 'cod-shield' ),
+				'desc'  => '<img src="' . esc_url( COD_SHIELD_URL . 'admin/img/icon-128x128.png' ) . '" alt="" class="cod-shield-settings-logo" /> ' . __( 'Collect a fixed or percentage advance through an existing payment gateway, with the remaining balance due on delivery.', 'cod-shield' ),
 				'id'    => 'cod_shield_general',
 			),
 			array(
@@ -166,38 +124,39 @@ class Settings extends \WC_Settings_Page {
 				'id'   => 'cod_shield_configuration_status',
 			),
 			array(
-				'title'   => __( '1. Enable Cash on Delivery', 'cod-shield' ),
-				'desc'    => __( 'Show COD at checkout when the order is eligible.', 'cod-shield' ),
+				'title'   => __( 'Enable partial COD', 'cod-shield' ),
+				'desc'    => __( 'Collect an advance on COD orders. Turning this off leaves WooCommerce COD unchanged.', 'cod-shield' ),
 				'id'      => Core::OPT_ENABLED,
 				'type'    => 'checkbox',
-				'default' => 'yes',
+				'default' => 'no',
+				'value'   => 'yes' === get_option( Core::OPT_ENABLED, 'yes' ) && 'disabled' !== get_option( Core::OPT_MODE, 'disabled' ) ? 'yes' : 'no',
 			),
 			array(
-				'title'    => __( '2. Choose the advance', 'cod-shield' ),
+				'title'    => __( 'Advance type', 'cod-shield' ),
 				'id'       => Core::OPT_MODE,
 				'type'     => 'select',
-				'default'  => 'disabled',
+				'default'  => 'fixed',
+				'value'    => 'percentage' === get_option( Core::OPT_MODE, 'disabled' ) ? 'percentage' : 'fixed',
 				'options'  => array(
-					'disabled'   => __( 'No advance — plain COD', 'cod-shield' ),
-					'fixed'      => __( 'Fixed amount (₹)', 'cod-shield' ),
+					'fixed'      => __( 'Fixed amount', 'cod-shield' ),
 					'percentage' => __( 'Percentage of order total', 'cod-shield' ),
 				),
 				'desc_tip' => __( 'Choose how the upfront payment is calculated.', 'cod-shield' ),
 			),
 			array(
-				'title'             => __( 'Fixed amount', 'cod-shield' ),
+				'title'             => __( 'Advance value', 'cod-shield' ),
 				'id'                => Core::OPT_FIXED,
 				'type'              => 'number',
 				'default'           => 99,
 				'row_class'         => 'cod-shield-setup-subfield cod-shield-fixed-field',
 				'custom_attributes' => array(
 					'min'  => '0',
-					'step' => '1',
+					'step' => 'any',
 				),
-				'desc_tip'          => __( 'Used when Fixed amount is selected.', 'cod-shield' ),
+				'desc_tip'          => __( 'Amount in the store currency. The advance cannot exceed the order total.', 'cod-shield' ),
 			),
 			array(
-				'title'             => __( 'Percentage', 'cod-shield' ),
+				'title'             => __( 'Advance value (%)', 'cod-shield' ),
 				'id'                => Core::OPT_PERCENTAGE,
 				'type'              => 'number',
 				'default'           => 10,
@@ -205,16 +164,16 @@ class Settings extends \WC_Settings_Page {
 				'custom_attributes' => array(
 					'min'  => '0',
 					'max'  => '100',
-					'step' => '1',
+					'step' => 'any',
 				),
-				'desc_tip'          => __( 'Used when Percentage is selected.', 'cod-shield' ),
+				'desc_tip'          => __( 'Percentage of the final order total after discounts, including shipping and taxes.', 'cod-shield' ),
 			),
 			array(
-				'title'    => __( '3. Select an advance gateway', 'cod-shield' ),
+				'title'    => __( 'Advance gateway', 'cod-shield' ),
 				'id'       => Core::OPT_GATEWAYS,
 				'type'     => 'cod_shield_gateway_select',
 				'class'    => 'wc-enhanced-select cod-shield-gateway-select',
-				'css'      => 'min-width:350px;',
+				'css'      => 'width:100%;max-width:350px;',
 				'default'  => array(),
 				'options'  => $gateway_options,
 				'desc_tip' => __( 'Only explicitly supported gateway plugins are shown. Test the installed gateway version before going live.', 'cod-shield' ),
@@ -222,358 +181,6 @@ class Settings extends \WC_Settings_Page {
 			array(
 				'type' => 'sectionend',
 				'id'   => 'cod_shield_general',
-			),
-		);
-	}
-
-	/**
-	 * Advanced advance-payment and COD eligibility rules.
-	 *
-	 * @return array<int,array<string,mixed>>
-	 */
-	protected function get_settings_for_advance_section() {
-		return array(
-			array(
-				'title' => __( 'Advanced advance rules', 'cod-shield' ),
-				'type'  => 'title',
-				'desc'  => __( 'Optional limits for the advance amount and COD order value. Leave a value at 0 to disable that limit.', 'cod-shield' ),
-				'id'    => 'cod_shield_advance',
-			),
-			array(
-				'title'             => __( 'Minimum advance', 'cod-shield' ),
-				'id'                => Core::OPT_MIN,
-				'type'              => 'number',
-				'default'           => 0,
-				'custom_attributes' => array(
-					'min'  => '0',
-					'step' => '1',
-				),
-				'desc_tip'          => __( 'Never charge less than this, even when the percentage would be lower. Leave 0 for no minimum.', 'cod-shield' ),
-			),
-			array(
-				'title'             => __( 'Maximum advance', 'cod-shield' ),
-				'id'                => Core::OPT_MAX,
-				'type'              => 'number',
-				'default'           => 0,
-				'custom_attributes' => array(
-					'min'  => '0',
-					'step' => '1',
-				),
-				'desc_tip'          => __( 'Never charge more than this, even when the percentage would be higher. Leave 0 for no maximum.', 'cod-shield' ),
-			),
-			array(
-				'title'             => __( 'Minimum order value for COD', 'cod-shield' ),
-				'id'                => Core::OPT_THRESHOLD,
-				'type'              => 'number',
-				// Off by default: a non-zero default would hide small COD orders
-				// the moment the plugin is activated (see Core::get_defaults()).
-				'default'           => 0,
-				'custom_attributes' => array(
-					'min'  => '0',
-					'step' => '1',
-				),
-				'desc_tip'          => __( 'Orders below this amount cannot use COD. Leave 0 for no minimum.', 'cod-shield' ),
-			),
-			array(
-				'type' => 'sectionend',
-				'id'   => 'cod_shield_advance',
-			),
-			array(
-				'title' => __( 'Eligibility rules', 'cod-shield' ),
-				'type'  => 'title',
-				'desc'  => __( 'Optionally limit COD by order value or delivery pincode.', 'cod-shield' ),
-				'id'    => 'cod_shield_eligibility',
-			),
-			array(
-				'title'             => __( 'Maximum order value for COD', 'cod-shield' ),
-				'id'                => Eligibility::OPT_MAXIMUM,
-				'type'              => 'number',
-				'default'           => 0,
-				'custom_attributes' => array(
-					'min'  => '0',
-					'step' => '1',
-				),
-				'desc_tip'          => __( 'Orders above this amount cannot use COD. Leave 0 for no maximum.', 'cod-shield' ),
-			),
-			array(
-				'title'       => __( 'Excluded delivery pincodes', 'cod-shield' ),
-				'id'          => Eligibility::OPT_EXCLUDED_PINCODES,
-				'type'        => 'textarea',
-				'default'     => '',
-				'css'         => 'min-width:350px; min-height:90px;',
-				'placeholder' => __( '110001, 400*', 'cod-shield' ),
-				'desc'        => __( 'Separate pincodes with commas, spaces, or new lines. Add * at the end to exclude a range, for example 400*.', 'cod-shield' ),
-			),
-			array(
-				'title'       => __( 'Excluded shipping zones', 'cod-shield' ),
-				'id'          => Eligibility::OPT_EXCLUDED_SHIPPING_ZONES,
-				'type'        => 'textarea',
-				'default'     => '',
-				'css'         => 'min-width:350px;',
-				'placeholder' => __( '3, 7', 'cod-shield' ),
-				'desc'        => __( 'Zone IDs. COD is hidden when the chosen shipping method belongs to any excluded zone. Separate IDs with commas or new lines.', 'cod-shield' ),
-			),
-			array(
-				'title'       => __( 'Excluded shipping methods', 'cod-shield' ),
-				'id'          => Eligibility::OPT_EXCLUDED_SHIPPING_METHODS,
-				'type'        => 'textarea',
-				'default'     => '',
-				'css'         => 'min-width:350px;',
-				'placeholder' => __( 'local_pickup, flat_rate:23', 'cod-shield' ),
-				'desc'        => __( 'Shipping method IDs, optionally with an instance ID like flat_rate:23. Without an instance, every instance of that method excludes COD.', 'cod-shield' ),
-			),
-			array(
-				'title'       => __( 'Excluded products', 'cod-shield' ),
-				'id'          => Eligibility::OPT_EXCLUDED_PRODUCTS,
-				'type'        => 'textarea',
-				'default'     => '',
-				'css'         => 'min-width:350px;',
-				'placeholder' => __( '12, 77', 'cod-shield' ),
-				'desc'        => __( 'Product or variation IDs. A variation is excluded by its own ID or its parent product. Any matching cart item hides COD.', 'cod-shield' ),
-			),
-			array(
-				'title'       => __( 'Excluded product categories', 'cod-shield' ),
-				'id'          => Eligibility::OPT_EXCLUDED_CATEGORIES,
-				'type'        => 'textarea',
-				'default'     => '',
-				'css'         => 'min-width:350px;',
-				'placeholder' => __( '4, 15', 'cod-shield' ),
-				'desc'        => __( 'Category IDs. Any cart item in an excluded category hides COD.', 'cod-shield' ),
-			),
-			array(
-				'title'       => __( 'Excluded shipping classes', 'cod-shield' ),
-				'id'          => Eligibility::OPT_EXCLUDED_SHIPPING_CLASSES,
-				'type'        => 'textarea',
-				'default'     => '',
-				'css'         => 'min-width:350px;',
-				'placeholder' => __( '9, 31', 'cod-shield' ),
-				'desc'        => __( 'Shipping class IDs. Any cart item with an excluded shipping class hides COD.', 'cod-shield' ),
-			),
-			array(
-				'type' => 'sectionend',
-				'id'   => 'cod_shield_eligibility',
-			),
-		);
-	}
-
-	/**
-	 * Extra COD Fee section (features.md).
-	 *
-	 * @return array<int,array<string,mixed>>
-	 */
-	protected function get_settings_for_cod_fee_section() {
-		$tax_options = array( '' => __( 'Standard', 'cod-shield' ) );
-		if ( function_exists( 'wc_get_product_tax_class_options' ) ) {
-			$tax_options = wc_get_product_tax_class_options();
-		}
-
-		return array(
-			array(
-				'title' => __( 'Extra COD Fee', 'cod-shield' ),
-				'type'  => 'title',
-				'desc'  => __( 'Charge an additional fee on COD orders. The fee applies to both plain COD orders and COD orders with an advance. On the block checkout the fee is applied to the order at placement, so it appears in the final total rather than in the cart preview.', 'cod-shield' ),
-				'id'    => 'cod_shield_fee',
-			),
-			array(
-				'title'   => __( 'Enable extra COD fee', 'cod-shield' ),
-				'desc'    => __( 'Add a fee to orders paid by Cash on Delivery.', 'cod-shield' ),
-				'id'      => Core::OPT_FEE_ENABLED,
-				'type'    => 'checkbox',
-				'default' => 'no',
-			),
-			array(
-				'title'    => __( 'Fee type', 'cod-shield' ),
-				'id'       => Core::OPT_FEE_TYPE,
-				'type'     => 'select',
-				'default'  => 'fixed',
-				'options'  => array(
-					'fixed'      => __( 'Fixed amount (₹)', 'cod-shield' ),
-					'percentage' => __( 'Percentage of order total', 'cod-shield' ),
-				),
-				'desc_tip' => __( 'How the COD fee is calculated.', 'cod-shield' ),
-			),
-			array(
-				'title'             => __( 'Fee amount', 'cod-shield' ),
-				'id'                => Core::OPT_FEE_AMOUNT,
-				'type'              => 'number',
-				'default'           => 30,
-				'custom_attributes' => array(
-					'min'  => '0',
-					'step' => '1',
-				),
-				'desc_tip'          => __( 'Flat fee in ₹ (when type is Fixed).', 'cod-shield' ),
-			),
-			array(
-				'title'             => __( 'Fee percentage', 'cod-shield' ),
-				'id'                => Core::OPT_FEE_PERCENTAGE,
-				'type'              => 'number',
-				'default'           => 2,
-				'custom_attributes' => array(
-					'min'  => '0',
-					'max'  => '100',
-					'step' => '0.1',
-				),
-				'desc_tip'          => __( 'Percentage of the order total (when type is Percentage).', 'cod-shield' ),
-			),
-			array(
-				'title'   => __( 'Enable tax rates on the fee', 'cod-shield' ),
-				'desc'    => __( 'Apply WooCommerce tax rates to the extra COD fee.', 'cod-shield' ),
-				'id'      => Core::OPT_FEE_TAXABLE,
-				'type'    => 'checkbox',
-				'default' => 'no',
-			),
-			array(
-				'title'    => __( 'Fee tax class', 'cod-shield' ),
-				'id'       => Core::OPT_FEE_TAX_CLASS,
-				'type'     => 'select',
-				'default'  => '',
-				'options'  => $tax_options,
-				'desc_tip' => __( 'Tax class used when tax rates are enabled on the fee.', 'cod-shield' ),
-			),
-			array(
-				'type' => 'sectionend',
-				'id'   => 'cod_shield_fee',
-			),
-		);
-	}
-
-	/**
-	 * Messaging section.
-	 *
-	 * @return array<int,array<string,mixed>>
-	 */
-	protected function get_settings_for_messaging_section() {
-		return array(
-			array(
-				'title' => __( 'Checkout Messaging', 'cod-shield' ),
-				'type'  => 'title',
-				'desc'  => __( 'Messages shown near the COD payment method at checkout. Each can be disabled independently of the underlying logic. Available placeholders: {advance_amount}, {remaining_amount}, {percentage}.', 'cod-shield' ),
-				'id'    => 'cod_shield_messaging',
-			),
-			array(
-				'title'       => __( 'Checkout title', 'cod-shield' ),
-				'desc'        => __( 'Optional customer-facing name for COD. Leave blank to keep the WooCommerce title.', 'cod-shield' ),
-				'id'          => Core::OPT_COD_TITLE,
-				'type'        => 'text',
-				'default'     => '',
-				'placeholder' => __( 'Cash on delivery (COD)', 'cod-shield' ),
-			),
-			array(
-				'title'   => __( 'Advance message', 'cod-shield' ),
-				'desc'    => __( 'Show the advance notice when an advance is required.', 'cod-shield' ),
-				'id'      => Core::OPT_MSG_ADV_ENABLED,
-				'type'    => 'checkbox',
-				'default' => 'yes',
-			),
-			array(
-				'title'   => __( 'Advance message text', 'cod-shield' ),
-				'id'      => Core::OPT_MSG_ADV_TEXT,
-				'type'    => 'textarea',
-				'default' => __( 'Pay {advance_amount} now, {remaining_amount} on delivery (COD).', 'cod-shield' ),
-				'css'     => 'min-width:500px; min-height:80px;',
-			),
-			array(
-				'title'   => __( 'Risk-free message', 'cod-shield' ),
-				'desc'    => __( 'Show the trust-building message when no advance applies.', 'cod-shield' ),
-				'id'      => Core::OPT_MSG_FREE_ENABLED,
-				'type'    => 'checkbox',
-				'default' => 'yes',
-			),
-			array(
-				'title'   => __( 'Risk-free message text', 'cod-shield' ),
-				'id'      => Core::OPT_MSG_FREE_TEXT,
-				'type'    => 'textarea',
-				'default' => __( 'Cash on Delivery available — no advance payment required.', 'cod-shield' ),
-				'css'     => 'min-width:500px; min-height:80px;',
-			),
-			array(
-				'title' => __( 'Order Emails', 'cod-shield' ),
-				'type'  => 'title',
-				'desc'  => __( 'Append an advance-payment summary to WooCommerce order emails (customer and admin). It renders only after the advance has been collected. Placeholders: {advance_amount}, {remaining_amount}, {gateway}.', 'cod-shield' ),
-				'id'    => 'cod_shield_messaging_email',
-			),
-			array(
-				'title'   => __( 'Show advance summary in emails', 'cod-shield' ),
-				'desc'    => __( 'Append the paid advance and due-on-delivery amounts to order emails.', 'cod-shield' ),
-				'id'      => Core::OPT_MSG_EMAIL_ENABLED,
-				'type'    => 'checkbox',
-				'default' => 'yes',
-			),
-			array(
-				'title'    => __( 'Email summary heading', 'cod-shield' ),
-				'id'       => Core::OPT_MSG_EMAIL_TEXT,
-				'type'     => 'textarea',
-				'default'  => __( 'Advance payment received', 'cod-shield' ),
-				'css'      => 'min-width:500px; min-height:60px;',
-				'desc_tip' => __( 'Optional heading shown above the amount rows. Leave blank for rows only. Supports {advance_amount}, {remaining_amount} and {gateway}.', 'cod-shield' ),
-			),
-			array(
-				'type' => 'sectionend',
-				'id'   => 'cod_shield_messaging_email',
-			),
-			array(
-				'type' => 'sectionend',
-				'id'   => 'cod_shield_messaging',
-			),
-		);
-	}
-
-	/**
-	 * Order Handling section.
-	 *
-	 * @return array<int,array<string,mixed>>
-	 */
-	protected function get_settings_for_order_handling_section() {
-		return array(
-			array(
-				'title' => __( 'Order Handling', 'cod-shield' ),
-				'type'  => 'title',
-				'desc'  => __( 'Behaviour of orders when the advance payment fails or is abandoned at the gateway.', 'cod-shield' ),
-				'id'    => 'cod_shield_order_handling',
-			),
-			array(
-				'title'             => __( 'Stale advance attempt interval (minutes)', 'cod-shield' ),
-				'id'                => Core::OPT_STALE_ATTEMPT_MINUTES,
-				'type'              => 'number',
-				'default'           => 60,
-				'custom_attributes' => array(
-					'min'  => 15,
-					'max'  => 10080,
-					'step' => 1,
-				),
-				'desc_tip'          => __( 'After this interval, an unpaid attempt can be explicitly released for retry from the order screen. Verify the gateway first. Attempts without a timestamp, with a transaction, or under review remain protected.', 'cod-shield' ),
-			),
-			array(
-				'title'    => __( 'On advance payment failure', 'cod-shield' ),
-				'id'       => Core::OPT_FAILURE,
-				'type'     => 'select',
-				'default'  => 'allow',
-				'options'  => array(
-					'allow' => __( 'Keep order as pending — customer can retry', 'cod-shield' ),
-					'block' => __( 'Cancel the order — order is not placed', 'cod-shield' ),
-				),
-				'desc_tip' => __( '"Allow" leaves the order in Pending so the customer can retry payment. "Block" cancels the order so a new checkout is required.', 'cod-shield' ),
-			),
-			array(
-				'title'    => __( 'Order status after advance is paid', 'cod-shield' ),
-				'id'       => Core::OPT_ORDER_STATUS,
-				'type'     => 'select',
-				// Processing by default: the advance is already collected online
-				// when this status is applied. With 'on-hold' the customer
-				// receives the processing/payment-received email while the order
-				// actually lands on hold (no on-hold email follows — the
-				// transition is processing -> on-hold, which no WC email listens
-				// to). See Core::get_defaults().
-				'default'  => 'processing',
-				'options'  => array(
-					'on-hold'    => __( 'On hold', 'cod-shield' ),
-					'processing' => __( 'Processing', 'cod-shield' ),
-				),
-				'desc_tip' => __( 'Applied once the advance is collected. Processing is recommended (the advance is already collected online); On hold mirrors native COD behaviour.', 'cod-shield' ),
-			),
-			array(
-				'type' => 'sectionend',
-				'id'   => 'cod_shield_order_handling',
 			),
 		);
 	}
@@ -626,10 +233,10 @@ class Settings extends \WC_Settings_Page {
 	public function handle_configuration_status_field( $field ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- WooCommerce custom-field callback signature.
 		$status = $this->get_configuration_status();
 		if ( ! $status['shield_enabled'] ) {
-			$summary       = __( 'COD is turned off', 'cod-shield' );
+			$summary       = __( 'Partial COD is off — native COD is unchanged', 'cod-shield' );
 			$summary_class = 'muted';
 		} else {
-			$summary       = $status['ready'] ? __( 'Ready for checkout', 'cod-shield' ) : __( 'Needs attention', 'cod-shield' );
+			$summary       = $status['ready'] ? __( 'Configuration saved', 'cod-shield' ) : __( 'Needs attention', 'cod-shield' );
 			$summary_class = $status['ready'] ? 'ready' : 'warning';
 		}
 		?>
@@ -684,7 +291,7 @@ class Settings extends \WC_Settings_Page {
 		if ( $status['advance_enabled'] && ! $status['gateway_ready'] ) {
 			echo '<div class="notice notice-warning"><p>';
 			echo '<strong>' . esc_html__( 'Advance setup is incomplete:', 'cod-shield' ) . '</strong> ';
-			echo esc_html__( 'Advance payment is enabled, but no eligible gateway is selected. Choose and test one in Step 3, or use plain COD.', 'cod-shield' );
+			echo esc_html__( 'Advance payment is enabled, but no eligible gateway is selected. Choose and test an advance gateway, or turn partial COD off.', 'cod-shield' );
 			echo '</p></div>';
 		}
 	}
@@ -698,69 +305,7 @@ class Settings extends \WC_Settings_Page {
 	 * @return float
 	 */
 	public function sanitize_positive_number( $value, $option, $raw_value ) {
-		return max( 0.0, (float) $raw_value );
-	}
-
-	/**
-	 * Validate the stale interval independently of browser number constraints.
-	 *
-	 * @param mixed $value Sanitized-by-type value (unused).
-	 * @param array $option Field definition (unused).
-	 * @param mixed $raw_value Submitted minutes.
-	 * @return int
-	 */
-	public function sanitize_stale_attempt_minutes( $value, $option, $raw_value ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- WooCommerce filter signature.
-		return Core::normalize_stale_attempt_minutes( $raw_value );
-	}
-
-	/**
-	 * Sanitize the customer-facing COD title.
-	 *
-	 * @param mixed $value     Sanitized-by-type value (unused).
-	 * @param array $option    Field definition (unused).
-	 * @param mixed $raw_value Raw posted value.
-	 * @return string
-	 */
-	public function sanitize_cod_title( $value, $option, $raw_value ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- WooCommerce filter signature.
-		return sanitize_text_field( (string) $raw_value );
-	}
-
-	/**
-	 * Sanitize exact and trailing-wildcard pincode rules.
-	 *
-	 * @param mixed $value     Sanitized-by-type value (unused).
-	 * @param array $option    Field definition (unused).
-	 * @param mixed $raw_value Raw posted value.
-	 * @return string
-	 */
-	public function sanitize_pincode_rules( $value, $option, $raw_value ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- WooCommerce filter signature.
-		$rules = strtoupper( (string) $raw_value );
-		$rules = preg_replace( '/[^A-Z0-9*,\r\n ]+/', ' ', $rules );
-		return trim( (string) $rules );
-	}
-
-	/**
-	 * Sanitize an exclusion list of positive integer IDs to a clean string.
-	 *
-	 * @param mixed $value      Sanitized-by-type value (unused).
-	 * @param array $option     Field definition (unused).
-	 * @param mixed $raw_value  Raw posted value.
-	 * @return string
-	 */
-	public function sanitize_id_list_field( $value, $option, $raw_value ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- WooCommerce filter signature.
-		return implode( ', ', Eligibility::normalize_id_list( $raw_value ) );
-	}
-
-	/**
-	 * Sanitize a shipping-method exclusion list to canonical rate tokens.
-	 *
-	 * @param mixed $value      Sanitized-by-type value (unused).
-	 * @param array $option     Field definition (unused).
-	 * @param mixed $raw_value  Raw posted value.
-	 * @return string
-	 */
-	public function sanitize_shipping_method_list_field( $value, $option, $raw_value ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- WooCommerce filter signature.
-		return implode( ', ', Eligibility::normalize_shipping_method_list( $raw_value ) );
+		return is_scalar( $raw_value ) && is_numeric( $raw_value ) && is_finite( (float) $raw_value ) ? max( 0.0, (float) $raw_value ) : 0.0;
 	}
 
 	/**
@@ -772,26 +317,7 @@ class Settings extends \WC_Settings_Page {
 	 * @return float
 	 */
 	public function sanitize_percentage( $value, $option, $raw_value ) {
-		return min( 100.0, max( 0.0, (float) $raw_value ) );
-	}
-
-	/**
-	 * Sanitize a tax class: keep only classes WooCommerce knows about.
-	 *
-	 * @param mixed $value     Sanitized-by-type value (unused).
-	 * @param array $option    Field definition.
-	 * @param mixed $raw_value Raw posted value.
-	 * @return string
-	 */
-	public function sanitize_tax_class( $value, $option, $raw_value ) {
-		$raw_value = sanitize_key( (string) $raw_value );
-		if ( function_exists( 'wc_get_product_tax_class_options' ) ) {
-			$options = wc_get_product_tax_class_options();
-			if ( isset( $options[ $raw_value ] ) ) {
-				return $raw_value;
-			}
-		}
-		return '';
+		return min( 100.0, $this->sanitize_positive_number( $value, $option, $raw_value ) );
 	}
 
 	/**
@@ -866,9 +392,9 @@ class Settings extends \WC_Settings_Page {
 	private function get_configuration_status() {
 		$gateway_options    = $this->get_delegation_gateway_options();
 		$selected_gateway   = Core::resolve_delegation_gateway_id( get_option( Core::OPT_GATEWAYS, array() ) );
-		$advance_enabled    = 'disabled' !== get_option( Core::OPT_MODE, 'disabled' );
+		$advance_enabled    = 'yes' === get_option( Core::OPT_ENABLED, 'yes' ) && in_array( get_option( Core::OPT_MODE, 'disabled' ), array( 'fixed', 'percentage' ), true );
 		$gateway_ready      = '' !== $selected_gateway && isset( $gateway_options[ $selected_gateway ] );
-		$shield_enabled     = 'yes' === get_option( Core::OPT_ENABLED, 'yes' );
+		$shield_enabled     = $advance_enabled;
 		$native_cod_enabled = Core::instance()->native_cod_enabled();
 
 		if ( ! $advance_enabled ) {

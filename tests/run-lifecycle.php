@@ -34,12 +34,15 @@
 
 // Allow loading the class files outside WordPress.
 if ( ! defined( 'ABSPATH' ) ) {
-	define( 'ABSPATH', __DIR__ . '/../' );
+	function wc_get_price_decimals() { return 2; }
+
+define( 'ABSPATH', __DIR__ . '/../' );
 }
 
 require_once __DIR__ . '/../includes/class-cod-shield-core.php';
 require_once __DIR__ . '/../includes/class-cod-shield-gateway-bridge.php';
 require_once __DIR__ . '/../includes/class-cod-shield-order-meta.php';
+require_once __DIR__ . '/../includes/class-cod-shield-order-editor.php';
 require_once __DIR__ . '/../includes/class-cod-shield-order-ui.php';
 
 use CodShield\Core;
@@ -485,7 +488,8 @@ $o3 = make_advance_order( array( 'total' => 150.0, 'txn' => 'txn-2' ) ); // gate
 $bridge->finalize_advance_order( $o3->id );
 check( 100.0 === (float) $o3->get_total(), '3. overcharge: total restored to original (100)' );
 check( 'stub' === $o3->get_payment_method(), '3. overcharge: NOT converted to COD (method retained)' );
-check( 'paid' === $o3->get_meta( Core::META_STATUS ), '3. overcharge: advance marked paid' );
+check( 'review' === $o3->get_meta( Core::META_STATUS ), '3. overcharge: advance requires review' );
+check( 150.0 === $o3->get_meta( Core::META_RECEIVED ) && 'review' === $o3->get_meta( Core::META_AWAITING ), '3. overcharge: actual received retained and review locked' );
 check( 0.0 === (float) $o3->get_meta( Core::META_REMAINING ), '3. overcharge: remaining reduced to 0 (100-150)' );
 check( false !== strpos( implode( ' ', $o3->notes ), 'WARNING' ), '3. overcharge: WARNING note recorded' );
 
@@ -690,6 +694,7 @@ check( ! $bridge->release_stale_advance( $recoverable->id, $nonce ) && $after_re
 $order_ui = ( new ReflectionClass( CodShield\Order_UI::class ) )->newInstanceWithoutConstructor();
 $ui_cases = array(
 	'stale' => array( array(), true ),
+	'held stale' => array( array( 'status' => 'on-hold' ), true ),
 	'active' => array( array( Core::META_ATTEMPT_STARTED_AT => time() ), false ),
 	'legacy' => array( array( Core::META_ATTEMPT_STARTED_AT => '' ), false ),
 	'captured' => array( array( 'txn' => 'txn-ui' ), false ),
@@ -712,6 +717,26 @@ $order_ui->render_metabox( make_advance_order( $stale_meta ) );
 $html = ob_get_clean();
 check( ! str_contains( $html, 'value="' . Core::NONCE_RELEASE_ATTEMPT . '"' ), '18. metabox: release button hidden without capability' );
 $GLOBALS['_cod_can_edit_order'] = true;
+
+// Generic lifecycle regression: money evidence, rejected gateway and normal prepaid scope.
+check( 20.0 === $o2->get_meta( Core::META_ADVANCE ) && 20.0 === $o2->get_meta( Core::META_RECEIVED ), '19. success: requirement and received saved separately' );
+$bad_gateway = make_advance_order( array( 'txn' => 'txn-mismatch', 'method' => 'other', 'status' => 'processing' ) );
+$bridge->finalize_advance_order( $bad_gateway->id );
+$bridge->revert_unpaid_advance_status( $bad_gateway->id, 'pending', 'processing', $bad_gateway );
+check( 'pending' === $bad_gateway->get_status() && 'paid' !== $bad_gateway->get_meta( Core::META_STATUS ), '19. mismatched gateway cannot fulfill' );
+$prepaid = new Fake_Order();
+$prepaid->set_transaction_id( 'prepaid-payment' );
+$prepaid->save();
+$bridge->flag_cancelled_advance_for_review( $prepaid->id );
+check( '' === $prepaid->get_meta( Core::META_AWAITING ), '19. ordinary prepaid cancellation untouched' );
+foreach ( array( 20.01, 19.99 ) as $charged ) {
+ $mismatch = make_advance_order( array( 'total' => $charged, 'txn' => 'amount-mismatch' ) );
+ $bridge->finalize_advance_order( $mismatch->id );
+ check( 'review' === $mismatch->get_meta( Core::META_STATUS ) && $charged === $mismatch->get_meta( Core::META_RECEIVED ), '19. minor-unit charge mismatch requires review' );
+}
+$held_stale = make_advance_order( array_replace( $stale_meta, array( 'status' => 'on-hold' ) ) );
+$held_nonce = 'valid:' . Core::NONCE_RELEASE_ATTEMPT . '_' . $held_stale->id;
+check( $bridge->release_stale_advance( $held_stale->id, $held_nonce ) && 'pending' === $held_stale->get_status(), '20. held stale attempt explicitly released to payable pending' );
 
 // ---------------------------------------------------------------- summary.
 echo "\n" . sprintf( '%d tests, %d failures', $GLOBALS['tests'], $GLOBALS['failures'] ) . "\n";

@@ -56,16 +56,17 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 			return false;
 		}
 		$core = Core::instance();
-		if ( ! $core->cod_enabled() || ! $core->native_cod_enabled() ) {
-			return false;
-		}
 		if ( function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url( 'order-pay' ) ) {
 			$order_id = absint( get_query_var( 'order-pay' ) );
 			$order    = $order_id ? wc_get_order( $order_id ) : null;
 			// Mirror Gateway_Bridge::maybe_add_proxy_gateway(): the proxy is
 			// only retryable on order-pay when a delegation gateway is still
 			// configured (fail-closed otherwise).
-			return $order && $core->order_advance_outstanding( $order ) && $core->delegation_gateway();
+			return $order && $core->order_advance_outstanding( $order ) && $core->delegation_gateway( (string) $order->get_meta( Core::META_GATEWAY_USED ) );
+		}
+
+		if ( ! $core->cod_enabled() || ! $core->native_cod_enabled() ) {
+			return false;
 		}
 
 		// Mirror the native COD gateway's shipping and subscription
@@ -106,17 +107,11 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 			$order_id = absint( get_query_var( 'order-pay' ) );
 			$order    = $order_id ? wc_get_order( $order_id ) : null;
 			if ( $order ) {
-				$currency      = $order->get_currency();
-				$order_advance = (float) $order->get_meta( Core::META_ADVANCE );
-				if ( $order_advance > 0 ) {
-					$advance   = $order_advance;
-					$remaining = (float) $order->get_meta( Core::META_REMAINING );
-					if ( '' === $order->get_meta( Core::META_REMAINING ) ) {
-						$original  = (float) $order->get_meta( Core::META_ORIGINAL_TOTAL );
-						$remaining = max( 0.0, ( $original > 0 ? $original : (float) $order->get_total() ) - $advance );
-					}
-					// Keep the fall-through math below consistent.
-					$total = $advance + $remaining;
+				$view = Order_Meta::from_order( $order );
+				if ( $view->has_data() ) {
+					$currency = $view->currency;
+					$advance  = $view->advance;
+					$total    = $view->total;
 				}
 			}
 		}
@@ -175,8 +170,9 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 			return array( 'result' => 'failure' );
 		}
 
-		$total   = (float) $order->get_total();
-		$advance = $core->calculate_advance( $total );
+		$total    = (float) $order->get_total();
+		$recorded = (float) $order->get_meta( Core::META_ADVANCE );
+		$advance  = $recorded > 0 ? $recorded : ( $core->cod_enabled() ? $core->calculate_advance( $total ) : 0.0 );
 
 		// Safety: the advance must be positive for this method to be used.
 		if ( $advance <= 0 ) {
@@ -184,7 +180,7 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 			return array( 'result' => 'failure' );
 		}
 
-		$gateway = $core->delegation_gateway();
+		$gateway = $core->delegation_gateway( $recorded > 0 ? $gateway_used : '' );
 		if ( ! $gateway ) {
 			wc_add_notice( __( 'Cash on Delivery is temporarily unavailable. Please choose another payment method.', 'cod-shield' ), 'error' );
 			$this->log_advance_failure( $order, 'no delegation gateway configured' );
@@ -211,7 +207,12 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 
 		// Persist advance context before redirecting to the gateway.
 		$order->update_meta_data( Core::META_ADVANCE, $advance );
-		$order->update_meta_data( Core::META_MODE, $core->get_option( Core::OPT_MODE, 'disabled' ) );
+		if ( '' === $order->get_meta( Core::META_VALUE ) ) {
+			$mode = $core->get_option( Core::OPT_MODE, 'disabled' );
+			$order->update_meta_data( Core::META_MODE, $mode );
+			$order->update_meta_data( Core::META_VALUE, $core->get_option( 'percentage' === $mode ? Core::OPT_PERCENTAGE : Core::OPT_FIXED, 0 ) );
+		}
+		$order->update_meta_data( Core::META_RECEIVED, 0 );
 		$order->update_meta_data( Core::META_ORIGINAL_TOTAL, $total );
 		$order->update_meta_data( Core::META_REMAINING, max( 0.0, $total - $advance ) );
 		$order->update_meta_data( Core::META_STATUS, 'pending' );
@@ -235,11 +236,10 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 		// finalize_advance_order() switches the method back to COD once the
 		// advance is paid.
 		//
-		// These mutations and the delegation call are inside the try so any
-		// exception falls through to the shared failure handling below, which
-		// restores the full total and the proxy method — the order can never be
-		// left at the advance total with a foreign payment method (e.g. by a
-		// fatal in a third-party plugin hooked into the gateway's flow).
+		// Failures before delegation can restore the proxy. Once the gateway
+		// is called, exceptions leave the attempt locked for reconciliation.
+		$delegated = false;
+		$uncertain = false;
 		try {
 			$order->set_total( $advance );
 			$order->save();
@@ -263,11 +263,12 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 				$order->set_payment_method_title( $gateway->get_title() );
 				$order->save();
 
-				$result = $gateway->process_payment( $order_id );
+				$delegated = true;
+				$result    = $gateway->process_payment( $order_id );
 			}
 		} catch ( \Throwable $e ) {
-			// Route exceptions through the same failure handling so the order is
-			// restored and can never be charged the full amount by accident.
+			$uncertain = $delegated;
+			// Preserve uncertainty after delegation; a failed response can follow capture.
 			$result = array(
 				'result'   => 'failure',
 				'messages' => $e->getMessage(),
@@ -284,6 +285,27 @@ class Gateway_COD_Advance extends \WC_Payment_Gateway {
 				)
 			);
 			return $result;
+		}
+
+		// The gateway can save or finalize through a different order instance
+		// before returning or throwing. Never overwrite that newer evidence.
+		$order = wc_get_order( $order_id );
+		if ( ! $order ) {
+			return array( 'result' => 'failure' );
+		}
+		if ( 'paid' === $order->get_meta( Core::META_STATUS ) ) {
+			return array(
+				'result'   => 'success',
+				'redirect' => $this->get_return_url( $order ),
+			);
+		}
+		if ( $uncertain || $order->get_transaction_id() || (float) $order->get_meta( Core::META_RECEIVED ) > 0 || 'review' === $order->get_meta( Core::META_AWAITING ) ) {
+			// A thrown request does not prove the gateway rejected the charge.
+			// Retain delegated amount/method and lock for callback or reconciliation.
+			$order->update_meta_data( Core::META_ATTEMPT_STARTED, 'yes' );
+			$order->save();
+			$order->update_status( 'on-hold', __( 'Advance payment outcome is uncertain. Verify the gateway payment before retrying; the payment attempt remains locked.', 'cod-shield' ) );
+			return array( 'result' => 'failure' );
 		}
 
 		// Failure / abandoned: restore the full total, revert to the proxy method

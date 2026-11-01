@@ -58,33 +58,19 @@ class PDF_Support {
 			return $totals;
 		}
 
-		$advance = (float) $order->get_meta( Core::META_ADVANCE );
-		if ( $advance <= 0 ) {
+		$view = Order_Meta::from_order( $order );
+		if ( ! $view->has_data() ) {
 			return $totals;
 		}
-
-		$original  = (float) $order->get_meta( Core::META_ORIGINAL_TOTAL );
-		$remaining = (float) $order->get_meta( Core::META_REMAINING );
-		if ( $remaining <= 0 && $original > $advance ) {
-			$remaining = $original - $advance;
+		if ( 'yes' === $order->get_meta( Core::META_AWAITING ) && isset( $totals['order_total'] ) ) {
+			$totals['order_total']['value'] = wc_price( $view->total, array( 'currency' => $view->currency ) );
 		}
-		$currency = $order->get_currency();
-
-		// A document generated while the charge is still awaiting (webhook
-		// latency, admin preview) would otherwise invoice the transient
-		// advance-only total. Show the real order total instead.
-		if ( 'yes' === $order->get_meta( Core::META_AWAITING ) && $original > 0 && isset( $totals['order_total'] ) ) {
-			$totals['order_total']['value'] = wc_price( $original, array( 'currency' => $currency ) );
+		foreach ( Emails::summary_rows( $view ) as $key => $row ) {
+			$totals[ 'cod_shield_' . $key ] = array(
+				'label' => $row['label'],
+				'value' => wc_price( $row['amount'], array( 'currency' => $view->currency ) ),
+			);
 		}
-
-		$totals['advance_paid'] = array(
-			'label' => __( 'Advance paid online', 'cod-shield' ),
-			'value' => wc_price( $advance, array( 'currency' => $currency ) ),
-		);
-		$totals['balance_due']  = array(
-			'label' => __( 'Balance due on delivery', 'cod-shield' ),
-			'value' => wc_price( max( 0.0, $remaining ), array( 'currency' => $currency ) ),
-		);
 
 		return $totals;
 	}

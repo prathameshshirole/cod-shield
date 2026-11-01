@@ -55,6 +55,7 @@ class WC_Payment_Gateway {
 }
 
 require_once __DIR__ . '/../includes/class-cod-shield-core.php';
+require_once __DIR__ . '/../includes/class-cod-shield-order-meta.php';
 require_once __DIR__ . '/../includes/class-cod-shield-gateway-cod-advance.php';
 
 use CodShield\Core;
@@ -66,7 +67,8 @@ class Breakdown_Core extends Core {
 		return 1000.0;
 	}
 }
-class Breakdown_Order {
+class WC_Order {}
+class Breakdown_Order extends WC_Order {
 	public $meta = array();
 	public $total = 99.0;
 	public function get_meta( $key ) {
@@ -121,27 +123,27 @@ breakdown_excludes( $html, 'cod-shield-payment-instructions' );
 $GLOBALS['breakdown_options'][ Core::OPT_MSG_ADV_ENABLED ] = 'yes';
 $GLOBALS['breakdown_options'][ Core::OPT_MSG_ADV_TEXT ] = '<strong>Deposit {advance_amount}; balance {remaining_amount}; rate {percentage}%.</strong><script>bad()</script>';
 $html = $core->get_advance_breakdown( 99, 901, 'GBP' );
-breakdown_contains( $html, '<strong>Deposit <span class="amount">GBP 99.00</span>; balance <span class="amount">GBP 901.00</span>; rate 10%.</strong>' );
-breakdown_contains( $html, 'cod-shield-payment-instructions' );
+breakdown_excludes( $html, 'Deposit' );
+breakdown_contains( $html, 'GBP 99.00' );
+breakdown_excludes( $html, 'cod-shield-payment-instructions' );
 breakdown_excludes( $html, '<script>' );
 breakdown_contains( $html, '<dt>Pay now</dt>' );
 
 $GLOBALS['breakdown_options'][ Core::OPT_MSG_ADV_TEXT ] = Core::get_defaults()[ Core::OPT_MSG_ADV_TEXT ];
 $GLOBALS['breakdown_order_pay'] = true;
 $order = new Breakdown_Order();
-$order->meta = array( Core::META_ADVANCE => 99, Core::META_REMAINING => 901, Core::META_ORIGINAL_TOTAL => 1000 );
+$order->meta = array( Core::META_ADVANCE => 99, Core::META_REMAINING => 901, Core::META_ORIGINAL_TOTAL => 1000, Core::META_AWAITING => 'yes' );
 $GLOBALS['breakdown_order'] = $order;
 $html = $gateway->get_description();
 breakdown_contains( $html, 'GBP 99.00' );
 breakdown_contains( $html, 'GBP 901.00' );
 breakdown_excludes( $html, 'INR' );
 
-// Explicit zero must remain zero, even when the order total is restored.
+// A saved actual balance is not the expected balance after the advance.
 $order->meta[ Core::META_REMAINING ] = '0';
 $order->total = 1000;
 $html = $gateway->get_description();
-breakdown_contains( $html, '<dt>Pay on delivery</dt><dd><span class="amount">GBP 0.00</span></dd>' );
-breakdown_excludes( $html, 'GBP 901.00' );
+breakdown_contains( $html, '<dt>Pay on delivery</dt><dd><span class="amount">GBP 901.00</span></dd>' );
 
 // A legacy missing balance uses the original total, not the reduced advance.
 unset( $order->meta[ Core::META_REMAINING ] );
@@ -151,9 +153,18 @@ breakdown_contains( $html, 'GBP 901.00' );
 
 // Legacy orders without either balance or original total use their full total.
 unset( $order->meta[ Core::META_ORIGINAL_TOTAL ] );
+$order->meta[ Core::META_AWAITING ] = 'no';
 $order->total = 1000;
 $html = $gateway->get_description();
 breakdown_contains( $html, 'GBP 901.00' );
+
+// A corrected requirement uses the current total, not actual unpaid balance metadata.
+$order->total = 500;
+$order->meta[ Core::META_ADVANCE ] = 80;
+$order->meta[ Core::META_REMAINING ] = 500;
+$html = $gateway->get_description();
+breakdown_contains( $html, '<dt>Pay now</dt><dd><span class="amount">GBP 80.00</span></dd>' );
+breakdown_contains( $html, '<dt>Pay on delivery</dt><dd><span class="amount">GBP 420.00</span></dd>' );
 
 $html = $core->get_advance_breakdown( -5, -10 );
 breakdown_contains( $html, '<dt>Pay now</dt><dd><span class="amount">INR 0.00</span></dd>' );

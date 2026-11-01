@@ -1,13 +1,6 @@
 <?php
 /**
- * Order emails: inject a compact "advance paid / due on delivery" summary
- * into WooCommerce customer and admin order emails.
- *
- * Implemented on the woocommerce_email_after_order_table hook (NOT via a
- * template override) so it survives WooCommerce template version bumps.
- * Amounts are read from order meta only — the order's own total is never
- * modified here, so there is no data-integrity side effect (unlike the
- * total-swap approach used by some other partial-COD plugins).
+ * Payment summaries for customer order pages and emails.
  *
  * @package COD_Shield
  */
@@ -16,163 +9,80 @@ namespace CodShield;
 
 defined( 'ABSPATH' ) || exit;
 
-/**
- * Emails class.
- */
+/** Display recorded amounts without changing order data. */
 class Emails {
 
-	/**
-	 * Hook registration.
-	 */
+	/** Register customer and email displays. */
 	public function __construct() {
 		add_action( 'woocommerce_email_after_order_table', array( $this, 'render_summary' ), 10, 4 );
+		add_action( 'woocommerce_order_details_after_order_table', array( $this, 'render_summary' ), 10, 1 );
 	}
 
 	/**
-	 * Render the advance-payment summary in order emails.
+	 * Shared financial rows for customer pages, emails and invoices.
 	 *
-	 * Only fires for finalized advance orders (META_STATUS 'paid' with an
-	 * advance recorded), so the summary never claims an advance was collected
-	 * before it actually was. The 'paid' flag is set by Gateway_Bridge during
-	 * finalize_advance_order() — which runs before the post-payment status
-	 * transition that triggers these emails.
-	 *
-	 * @param \WC_Order $order         Order.
-	 * @param bool      $sent_to_admin Sent to admin (unused).
-	 * @param bool      $plain_text    Plain-text email.
-	 * @param \WC_Email $email         Email object (unused).
-	 * @return void
+	 * @param Order_Meta $view Recorded order data.
+	 * @return array
 	 */
-	public function render_summary( $order, $sent_to_admin, $plain_text = false, $email = null ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- Hook signature.
-		if ( ! is_a( $order, '\WC_Order' ) ) {
-			return;
-		}
-
-		$core = Core::instance();
-		if ( 'yes' !== $core->get_option( Core::OPT_MSG_EMAIL_ENABLED, 'yes' ) ) {
-			return;
-		}
-
-		// Normalized view covers both SureOrder orders and legacy RIRCOD orders.
-		$view = Order_Meta::from_order( $order );
-
-		// Only summarize once the advance is confirmed collected.
-		if ( ! $view->has_data() || 'paid' !== $view->status || $view->advance <= 0 ) {
-			return;
-		}
-
-		$heading = $this->resolve_heading( $core, $view->advance, $view->remaining, $view->gateway, (bool) $plain_text );
-
-		if ( $plain_text ) {
-			$this->render_plain( $heading, $view->advance, $view->remaining, $view->gateway );
-		} else {
-			$this->render_html( $heading, $view->advance, $view->remaining, $view->gateway );
-		}
-	}
-
-	/**
-	 * Resolve the optional heading line, with placeholder substitution.
-	 *
-	 * @param Core   $core      Core instance.
-	 * @param float  $advance   Advance amount.
-	 * @param float  $remaining Remaining amount.
-	 * @param string $gateway   Gateway id.
-	 * @param bool   $plain     Plain-text context.
-	 * @return string Empty string when no heading is configured.
-	 */
-	private function resolve_heading( $core, $advance, $remaining, $gateway, $plain ) {
-		$template = (string) $core->get_option( Core::OPT_MSG_EMAIL_TEXT, '' );
-		if ( '' === trim( $template ) ) {
-			return '';
-		}
-		return Core::substitute_placeholders(
-			$template,
-			array(
-				'advance_amount'   => $this->money( $advance, $plain ),
-				'remaining_amount' => $this->money( $remaining, $plain ),
-				'gateway'          => $gateway ? $gateway : '',
-			)
+	public static function summary_rows( $view ) {
+		$rows = array(
+			'required' => array(
+				'label'  => __( 'Advance required', 'cod-shield' ),
+				'amount' => $view->advance,
+			),
+			'received' => array(
+				'label'  => __( 'Payment received', 'cod-shield' ),
+				'amount' => $view->received,
+			),
+			'balance'  => array(
+				'label'  => 'paid' === $view->status ? __( 'Due on delivery', 'cod-shield' ) : __( 'Outstanding balance', 'cod-shield' ),
+				'amount' => $view->remaining,
+			),
 		);
-	}
-
-	/**
-	 * Format an amount as a price string, HTML-safe for plain text.
-	 *
-	 * @param float $amount Amount.
-	 * @param bool  $plain  Plain-text context.
-	 * @return string
-	 */
-	private function money( $amount, $plain ) {
-		$html = wc_price( $amount );
-		return $plain ? html_entity_decode( wp_strip_all_tags( (string) $html ), ENT_QUOTES ) : (string) $html;
-	}
-
-	/**
-	 * HTML email output.
-	 *
-	 * @param string $heading   Heading line (may be empty).
-	 * @param float  $advance   Advance amount.
-	 * @param float  $remaining Remaining amount.
-	 * @param string $gateway   Gateway id.
-	 * @return void
-	 */
-	private function render_html( $heading, $advance, $remaining, $gateway ) {
-		echo '<div class="cod-shield-email-summary" style="margin:16px 0 24px;padding:12px 0;border-top:1px solid #e5e5e5;">';
-
-		if ( '' !== $heading ) {
-			echo '<p style="margin:0 0 8px;font-size:14px;font-weight:600;">' . wp_kses_post( $heading ) . '</p>';
-		}
-
-		echo '<table role="presentation" cellspacing="0" cellpadding="4" style="width:100%;border-collapse:collapse;font-size:14px;">';
-
-		if ( $gateway ) {
-			// translators: %s: gateway id.
-			$advance_label = sprintf( __( 'Advance paid (via %s)', 'cod-shield' ), $gateway );
-		} else {
-			$advance_label = __( 'Advance paid', 'cod-shield' );
-		}
-
-		printf(
-			'<tr><th scope="row" style="text-align:left;font-weight:400;padding:2px 0;">%1$s</th><td style="text-align:right;font-weight:600;color:#1a7f37;padding:2px 0;">%2$s</td></tr>',
-			esc_html( $advance_label ),
-			wp_kses_post( wc_price( $advance ) ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
-		);
-
-		if ( $remaining > 0 ) {
-			printf(
-				'<tr><th scope="row" style="text-align:left;font-weight:400;padding:2px 0;">%1$s</th><td style="text-align:right;font-weight:600;color:#9a6700;padding:2px 0;">%2$s</td></tr>',
-				esc_html__( 'Due on delivery', 'cod-shield' ),
-				wp_kses_post( wc_price( $remaining ) ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		if ( 'paid' !== $view->status ) {
+			$rows['expected'] = array(
+				'label'  => __( 'Expected delivery balance after advance payment', 'cod-shield' ),
+				'amount' => $view->expected_remaining,
 			);
 		}
-
-		echo '</table></div>';
+		return $rows;
 	}
 
 	/**
-	 * Plain-text email output.
+	 * Render only recorded partial-COD orders, including pending payments.
 	 *
-	 * @param string $heading   Heading line (may be empty).
-	 * @param float  $advance   Advance amount.
-	 * @param float  $remaining Remaining amount.
-	 * @param string $gateway   Gateway id.
-	 * @return void
+	 * @param \WC_Order $order Order.
+	 * @param bool      $sent_to_admin Admin email context.
+	 * @param bool      $plain_text Plain email context.
+	 * @param mixed     $email Email object.
 	 */
-	private function render_plain( $heading, $advance, $remaining, $gateway ) {
-		if ( '' !== $heading ) {
+	public function render_summary( $order, $sent_to_admin = false, $plain_text = false, $email = null ) { // phpcs:ignore Generic.CodeAnalysis.UnusedFunctionParameter -- WooCommerce hook signature.
+		$view = Order_Meta::from_order( $order );
+		if ( ! $view->has_data() ) {
+			return;
+		}
+		$states  = array(
+			'paid'    => __( 'Advance received', 'cod-shield' ),
+			'pending' => __( 'Awaiting advance payment', 'cod-shield' ),
+			'failed'  => __( 'Advance payment failed', 'cod-shield' ),
+			'review'  => __( 'Payment needs review', 'cod-shield' ),
+		);
+		$heading = $states[ $view->status ] ?? __( 'Partial COD payment', 'cod-shield' );
+		if ( $plain_text ) {
 			echo esc_html( $heading ) . "\n";
-		}
-		if ( $gateway ) {
-			// translators: 1: gateway id, 2: advance amount.
-			$advance_label = sprintf( __( 'Advance paid (via %1$s): %2$s', 'cod-shield' ), $gateway, $this->money( $advance, true ) );
 		} else {
-			// translators: %s: advance amount.
-			$advance_label = sprintf( __( 'Advance paid: %s', 'cod-shield' ), $this->money( $advance, true ) );
+			echo '<div class="cod-shield-email-summary"><h3>' . esc_html( $heading ) . '</h3><table role="presentation">';
 		}
-		echo esc_html( $advance_label ) . "\n";
-		if ( $remaining > 0 ) {
-			// translators: %s: amount.
-			echo esc_html( sprintf( __( 'Due on delivery: %s', 'cod-shield' ), $this->money( $remaining, true ) ) ) . "\n";
+		foreach ( self::summary_rows( $view ) as $row ) {
+			$price = wc_price( $row['amount'], array( 'currency' => $view->currency ) );
+			if ( $plain_text ) {
+				echo esc_html( $row['label'] . ': ' . html_entity_decode( wp_strip_all_tags( $price ), ENT_QUOTES, 'UTF-8' ) ) . "\n";
+			} else {
+				echo '<tr><th scope="row">' . esc_html( $row['label'] ) . '</th><td>' . wp_kses_post( $price ) . '</td></tr>';
+			}
+		}
+		if ( ! $plain_text ) {
+			echo '</table></div>';
 		}
 	}
 }

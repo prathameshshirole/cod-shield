@@ -8,6 +8,7 @@
 define( 'ABSPATH', __DIR__ . '/../' );
 require_once __DIR__ . '/../includes/class-cod-shield-core.php';
 require_once __DIR__ . '/../includes/class-cod-shield-checkout.php';
+require_once __DIR__ . '/../includes/class-cod-shield-order-meta.php';
 
 use CodShield\Core;
 use CodShield\Checkout;
@@ -104,44 +105,13 @@ function checkout_assert( $condition, $message ) {
 	if ( ! $condition ) { fwrite( STDERR, "FAIL: $message\n" ); exit( 1 ); }
 }
 
-$checkout->track_store_api_request( null, array(), new Checkout_Request( '/wc/store/v1/cart/extensions' ) );
 $checkout->maybe_add_cod_fee( WC()->cart );
-checkout_assert( 13.2 === WC()->cart->added[0][1], 'Fee must use current discounted cart amounts including product and shipping tax, not stale get_total().' );
-checkout_assert( true === WC()->cart->added[0][2] && 'reduced-rate' === WC()->cart->added[0][3], 'Taxable fee configuration must reach WooCommerce before checkout.' );
-WC()->cart->fees = array(
-	(object) array( 'id' => 'cash-on-delivery-fee', 'amount' => 13.2, 'tax' => 1.32 ),
-	(object) array( 'id' => 'packing', 'amount' => 5, 'tax' => 0.5 ),
-);
-$checkout->maybe_add_cod_fee( WC()->cart );
-checkout_assert( 13.75 === WC()->cart->added[1][1], 'Repeated calculations exclude the previous COD fee and its tax, while including other fees.' );
-WC()->cart->contents = 50;
-$checkout->maybe_add_cod_fee( WC()->cart );
-checkout_assert( 8.75 === WC()->cart->added[2][1], 'Coupon changes must lower the fee before submission.' );
-WC()->session->method = 'card';
-$checkout->maybe_add_cod_fee( WC()->cart );
-checkout_assert( 3 === count( WC()->cart->added ), 'Switching to another payment method must not add a COD fee.' );
-WC()->session->method = 'cod';
-$checkout->track_store_api_request( null, array(), new Checkout_Request( '/wc/v3/orders' ) );
-$checkout->maybe_add_cod_fee( WC()->cart );
-checkout_assert( 3 === count( WC()->cart->added ), 'Administrative REST requests must not add storefront fees.' );
+checkout_assert( array() === WC()->cart->added, 'Retired saved fee settings must not add a fee.' );
 $GLOBALS['options'][ Core::OPT_THRESHOLD ] = 10000;
 ob_start();
 $checkout->render_cod_minimum_notice();
 $notice = ob_get_clean();
-checkout_assert( str_contains( $notice, 'Cash on delivery is available on orders of $10,000.00 or more.' ), 'Hidden COD must have an upfront minimum explanation.' );
-$GLOBALS['order'] = new Checkout_Order();
-ob_start();
-$checkout->render_thankyou_summary( 1 );
-$summary = ob_get_clean();
-checkout_assert( ! str_contains( $summary, 'internal_secret_gateway' ) && str_contains( $summary, '$80.00' ), 'Confirmation must show delivery amount without exposing internal gateway identifiers.' );
-$request = new Checkout_Request( '/wc/store/v1/checkout' );
-$request->payment_method = 'card';
-checkout_assert( $checkout->track_store_api_request( null, array(), $request ) instanceof WP_Error, 'Checkout must reject charging stale COD fees when switching to card without refreshing.' );
-WC()->session->method = 'card';
-$request->payment_method = Core::GATEWAY_ID;
-checkout_assert( $checkout->track_store_api_request( null, array(), $request ) instanceof WP_Error, 'Checkout must reject COD submission when its fee has not been previewed.' );
-WC()->session->method = Core::GATEWAY_ID;
-checkout_assert( null === $checkout->track_store_api_request( null, array(), $request ), 'Checkout accepts the same payment method used to preview totals.' );
+checkout_assert( '' === $notice, 'Retired minimum must not hide COD or display a minimum notice.' );
 
 // ------------------------------------------------------------------ native COD parity.
 // The advance proxy must never resurrect native COD that WooCommerce core
@@ -165,6 +135,8 @@ class Checkout_Gateway_Entry extends WC_Payment_Gateway {
 	public $enabled = 'yes';
 }
 class Checkout_Outstanding_Order extends WC_Order {
+	public function get_currency() { return 'INR'; }
+	public function get_total() { return 100; }
 	public function get_meta( $key = '', $single = false, $context = 'view' ) {
 		return array(
 			Core::META_STATUS   => 'pending',
@@ -224,55 +196,20 @@ checkout_assert( ! isset( $filtered['cod'] ), 'The advance flow must swap out na
 $filtered = $bridge->maybe_add_proxy_gateway( $filtered );
 checkout_assert( isset( $filtered[ Core::GATEWAY_ID ] ), 'The proxy must replace native COD in the normal advance flow.' );
 
-// Case C: order-pay for an outstanding advance is never re-evaluated against
-// storefront rules — even an active maximum exclusion must not remove the proxy.
-$eligibility = ( new ReflectionClass( Eligibility::class ) )->newInstanceWithoutConstructor();
-$GLOBALS['options'][ Eligibility::OPT_MAXIMUM ] = 100;
-$GLOBALS['checkout_order_pay'] = true;
-$GLOBALS['order'] = new Checkout_Outstanding_Order();
-$order_pay_gateways = array( 'card' => new Checkout_Gateway_Entry(), 'cod' => new Checkout_Gateway_Entry(), Core::GATEWAY_ID => new Checkout_Gateway_Entry() );
-$filtered = $eligibility->filter_available_gateways( $order_pay_gateways );
-checkout_assert( isset( $filtered['cod'] ) && isset( $filtered[ Core::GATEWAY_ID ] ), 'Order-pay must bypass storefront eligibility rules for an existing advance obligation.' );
-
-// Same exclusion on a storefront (non order-pay) list removes both methods.
-$GLOBALS['checkout_order_pay'] = false;
-$filtered = $eligibility->filter_available_gateways( $order_pay_gateways );
-checkout_assert( ! isset( $filtered['cod'] ) && ! isset( $filtered[ Core::GATEWAY_ID ] ), 'Storefront eligibility must remove native COD and the proxy above the maximum.' );
-$GLOBALS['options'][ Eligibility::OPT_MAXIMUM ] = 0;
-$GLOBALS['order'] = new Checkout_Order();
-
-// Case D: a shipping-method exclusion removes both methods on the storefront.
-$GLOBALS['wc']->session->chosen_shipping = array( 'local_pickup:5' );
-$GLOBALS['options'][ Eligibility::OPT_EXCLUDED_SHIPPING_METHODS ] = 'local_pickup';
-$storefront = $eligibility->filter_available_gateways( $order_pay_gateways );
-checkout_assert( ! isset( $storefront['cod'] ) && ! isset( $storefront[ Core::GATEWAY_ID ] ), 'A selected excluded shipping method must remove native COD and the proxy.' );
-checkout_assert( 'excluded_shipping_method' === Eligibility::evaluate_current_cart()['code'], 'Shipping exclusions report their stable reason code.' );
-$GLOBALS['options'][ Eligibility::OPT_EXCLUDED_SHIPPING_METHODS ] = '';
-
-// Case E: a catalog exclusion removes both methods on the storefront.
-$GLOBALS['wc']->session->chosen_shipping = array();
+// Existing saved exclusions must not affect the simplified Blocks flow.
 $GLOBALS['options'][ Eligibility::OPT_EXCLUDED_PRODUCTS ] = '50';
+$GLOBALS['options'][ Eligibility::OPT_MAXIMUM ] = 100;
 $GLOBALS['wc']->cart->items = array( array( 'product_id' => 50, 'variation_id' => 0 ) );
-$storefront = $eligibility->filter_available_gateways( $order_pay_gateways );
-checkout_assert( ! isset( $storefront['cod'] ) && ! isset( $storefront[ Core::GATEWAY_ID ] ), 'An excluded product in the cart must remove native COD and the proxy.' );
-checkout_assert( 'excluded_product' === Eligibility::evaluate_current_cart()['code'], 'Catalog exclusions report their stable reason code.' );
-
-// Case F: the Blocks Store API payload carries the structured reason, and the
-// shared evaluation never depends on the chosen payment method.
 $blocks = ( new ReflectionClass( CodShield\Blocks::class ) )->newInstanceWithoutConstructor();
 $payload = $blocks->get_cart_data();
-checkout_assert( false === $payload['cod_eligible'] && 'excluded_product' === $payload['cod_ineligibility_code'], 'Blocks data carries the structured ineligibility code.' );
-checkout_assert( str_contains( $payload['cod_ineligibility_message'], 'not available for some items' ), 'Blocks data carries the customer-facing reason.' );
-checkout_assert( false === $payload['available'], 'Blocks availability follows the shared evaluation.' );
-$GLOBALS['wc']->session->method = 'card';
-$payload_card = $blocks->get_cart_data();
-checkout_assert( $payload_card['cod_ineligibility_code'] === $payload['cod_ineligibility_code'] && $payload_card['payment_method'] === 'card', 'Reason fields are independent of the selected payment method.' );
-$GLOBALS['wc']->session->method = Core::GATEWAY_ID;
+checkout_assert( true === $payload['available'], 'Retired exclusions must not affect Blocks availability.' );
 
-// Eligible cart: structured fields are clean and availability is restored.
-$GLOBALS['options'][ Eligibility::OPT_EXCLUDED_PRODUCTS ] = '';
-$GLOBALS['wc']->cart->items = array();
-$payload = $blocks->get_cart_data();
-checkout_assert( true === $payload['cod_eligible'] && '' === $payload['cod_ineligibility_code'] && '' === $payload['cod_ineligibility_message'], 'An eligible cart reports clean structured fields.' );
-checkout_assert( true === $payload['available'], 'Availability is restored once exclusions no longer match.' );
+$GLOBALS['options'][ Core::OPT_ENABLED ] = 'no';
+$available = array( 'cod' => new Checkout_Gateway_Entry() );
+$filtered = $bridge->maybe_add_proxy_gateway( $checkout->filter_available_gateways( $available ) );
+checkout_assert( isset( $filtered['cod'] ) && ! isset( $filtered[ Core::GATEWAY_ID ] ), 'Disabling partial COD preserves native COD.' );
+$GLOBALS['checkout_order_pay'] = true;
+$GLOBALS['order'] = new Checkout_Outstanding_Order();
+$filtered = $bridge->maybe_add_proxy_gateway( $checkout->filter_available_gateways( $available ) );
+checkout_assert( ! isset( $filtered['cod'] ) && isset( $filtered[ Core::GATEWAY_ID ] ), 'Existing advance remains payable after partial COD is disabled.' );
 echo "Checkout regressions: $checks checks passed.\n";

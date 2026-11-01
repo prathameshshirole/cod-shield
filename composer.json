@@ -32,7 +32,7 @@
         }
     },
     "scripts": {
-        "test": "phpunit && php tests/run-lifecycle.php && php tests/run-checkout.php && php tests/run-breakdown.php",
+        "test": "phpunit && php tests/run-lifecycle.php && php tests/run-checkout.php && php tests/run-breakdown.php && php tests/run-order-editor.php && php tests/run-display.php && php tests/run-proxy.php",
         "test:all": "@test && @test:integration",
         "test:integration": "phpunit -c phpunit-integration.xml.dist",
         "test:standalone": "php tests/run-tests.php",

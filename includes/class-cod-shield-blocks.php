@@ -88,7 +88,11 @@ class Blocks {
 		$total       = $core->get_cart_total();
 		$advance     = $core->calculate_advance( $total );
 		$remaining   = max( 0.0, $total - $advance );
-		$eligibility = Eligibility::evaluate_current_cart();
+		$eligibility = array(
+			'eligible' => $core->cart_qualifies_for_cod(),
+			'code'     => '',
+			'message'  => '',
+		);
 		return array(
 			'available'                 => $core->native_cod_enabled() && $core->advance_flow_active() && $core->cart_qualifies_for_cod() && $eligibility['eligible'],
 			'cod_eligible'              => $eligibility['eligible'],

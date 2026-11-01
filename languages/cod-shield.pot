@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-10-16T21:12:11+00:00\n"
+"POT-Creation-Date: 2026-11-01T13:06:49+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: cod-shield\n"
@@ -47,109 +47,102 @@ msgstr ""
 msgid "SureOrder requires WooCommerce to be installed and active."
 msgstr ""
 
+#: includes/class-cod-shield-blocks-payment-method-type.php:89
+msgid "Cash on delivery (with advance)"
+msgstr ""
+
+#: includes/class-cod-shield-blocks-payment-method-type.php:90
+#: public/js/blocks/payment-method.js:151
+msgid "Pay advance & confirm COD"
+msgstr ""
+
 #: includes/class-cod-shield-blocks.php:74
 msgid "Please select a valid payment method."
 msgstr ""
 
 #. translators: %s: minimum order amount for COD.
 #. translators: %s: minimum order value for cash on delivery.
-#: includes/class-cod-shield-blocks.php:100
-#: includes/class-cod-shield-checkout.php:695
+#: includes/class-cod-shield-blocks.php:104
+#: includes/class-cod-shield-checkout.php:696
 #, php-format
 msgid "Cash on delivery is available on orders of %s or more."
 msgstr ""
 
 #. translators: %s: minimum order value.
-#: includes/class-cod-shield-checkout.php:516
-#: includes/class-cod-shield-checkout.php:630
+#: includes/class-cod-shield-checkout.php:514
+#: includes/class-cod-shield-checkout.php:631
 #, php-format
 msgid "Cash on Delivery is available for orders of at least %s. Please choose another payment method."
 msgstr ""
 
-#: includes/class-cod-shield-checkout.php:526
+#: includes/class-cod-shield-checkout.php:524
 msgid "This order requires an advance payment. Please select the \"Cash on delivery (advance)\" option."
 msgstr ""
 
-#: includes/class-cod-shield-checkout.php:532
-#: includes/class-cod-shield-checkout.php:639
-#: includes/class-cod-shield-gateway-cod-advance.php:189
+#: includes/class-cod-shield-checkout.php:530
+#: includes/class-cod-shield-checkout.php:640
+#: includes/class-cod-shield-gateway-cod-advance.php:185
 msgid "Cash on Delivery is temporarily unavailable. Please choose another payment method."
 msgstr ""
 
-#: includes/class-cod-shield-checkout.php:671
+#: includes/class-cod-shield-checkout.php:672
 msgid "Your payment method changed. Please select it again and wait for the order total to update before placing your order."
 msgstr ""
 
-#: includes/class-cod-shield-checkout.php:727
-#: includes/class-cod-shield-checkout.php:738
+#: includes/class-cod-shield-checkout.php:728
+#: includes/class-cod-shield-checkout.php:739
 msgid "Cash on Delivery Fee"
 msgstr ""
 
-#: includes/class-cod-shield-checkout.php:766
-msgid "Payment summary"
-msgstr ""
-
-#: includes/class-cod-shield-checkout.php:768
-msgid "Advance paid:"
-msgstr ""
-
-#: includes/class-cod-shield-checkout.php:770
-msgid "Payable on delivery:"
-msgstr ""
-
-#: includes/class-cod-shield-core.php:116
-#: includes/class-cod-shield-settings.php:472
+#: includes/class-cod-shield-core.php:122
 msgid "Pay {advance_amount} now, {remaining_amount} on delivery (COD)."
 msgstr ""
 
-#: includes/class-cod-shield-core.php:118
-#: includes/class-cod-shield-settings.php:486
+#: includes/class-cod-shield-core.php:124
 msgid "Cash on Delivery available — no advance payment required."
 msgstr ""
 
-#: includes/class-cod-shield-core.php:120
-#: includes/class-cod-shield-settings.php:506
+#: includes/class-cod-shield-core.php:126
 msgid "Advance payment received"
 msgstr ""
 
 #. translators: %s: advance amount payable online.
-#: includes/class-cod-shield-core.php:255
+#: includes/class-cod-shield-core.php:279
 #, php-format
 msgid "Pay %s & confirm COD"
 msgstr ""
 
 #. translators: %s: advance amount payable online.
-#: includes/class-cod-shield-core.php:266
+#: includes/class-cod-shield-core.php:290
 #, php-format
 msgid "Confirm COD with %s now"
 msgstr ""
 
-#: includes/class-cod-shield-core.php:299
-#: includes/class-cod-shield-settings.php:459
+#: includes/class-cod-shield-core.php:323
 msgid "Cash on delivery (COD)"
 msgstr ""
 
 #. translators: %s: configured maximum advance amount.
-#: includes/class-cod-shield-core.php:956
+#: includes/class-cod-shield-core.php:983
 #, php-format
 msgid "Advance capped at %s."
 msgstr ""
 
 #. translators: %s: configured minimum advance amount.
-#: includes/class-cod-shield-core.php:959
+#: includes/class-cod-shield-core.php:986
 #, php-format
 msgid "Minimum advance: %s."
 msgstr ""
 
-#: includes/class-cod-shield-core.php:979
+#: includes/class-cod-shield-core.php:1006
 msgid "Pay now"
 msgstr ""
 
-#: includes/class-cod-shield-core.php:980
+#: includes/class-cod-shield-core.php:1007
 msgid "Pay on delivery"
 msgstr ""
 
-#: includes/class-cod-shield-core.php:981
+#: includes/class-cod-shield-core.php:1008
 msgid "Pay by UPI, card or net banking to confirm your COD order. This amount is included in your order total."
 msgstr ""
 
@@ -171,108 +164,116 @@ msgstr ""
 msgid "Cash on Delivery is not available for some items in your cart. Please remove them or choose an online payment method."
 msgstr ""
 
-#. translators: %s: gateway id.
-#: includes/class-cod-shield-emails.php:130
-#: includes/class-cod-shield-order-ui.php:522
-#, php-format
-msgid "Advance paid (via %s)"
+#: includes/class-cod-shield-emails.php:30
+msgid "Advance required"
 msgstr ""
 
-#: includes/class-cod-shield-emails.php:132
-#: includes/class-cod-shield-order-ui.php:217
-#: includes/class-cod-shield-order-ui.php:524
-msgid "Advance paid"
+#: includes/class-cod-shield-emails.php:34
+msgid "Payment received"
 msgstr ""
 
-#: includes/class-cod-shield-emails.php:144
-#: includes/class-cod-shield-order-ui.php:439
-#: includes/class-cod-shield-order-ui.php:543
+#: includes/class-cod-shield-emails.php:38
+#: includes/class-cod-shield-order-ui.php:576
 msgid "Due on delivery"
 msgstr ""
 
-#. translators: 1: gateway id, 2: advance amount.
-#: includes/class-cod-shield-emails.php:167
-#, php-format
-msgid "Advance paid (via %1$s): %2$s"
+#: includes/class-cod-shield-emails.php:38
+#: includes/class-cod-shield-order-ui.php:451
+msgid "Outstanding balance"
 msgstr ""
 
-#. translators: %s: advance amount.
-#: includes/class-cod-shield-emails.php:170
-#, php-format
-msgid "Advance paid: %s"
+#: includes/class-cod-shield-emails.php:44
+msgid "Expected delivery balance after advance payment"
 msgstr ""
 
-#. translators: %s: amount.
-#: includes/class-cod-shield-emails.php:175
-#, php-format
-msgid "Due on delivery: %s"
+#: includes/class-cod-shield-emails.php:65
+#: includes/class-cod-shield-order-ui.php:444
+msgid "Advance received"
 msgstr ""
 
-#: includes/class-cod-shield-gateway-bridge.php:357
+#: includes/class-cod-shield-emails.php:66
+msgid "Awaiting advance payment"
+msgstr ""
+
+#: includes/class-cod-shield-emails.php:67
+msgid "Advance payment failed"
+msgstr ""
+
+#: includes/class-cod-shield-emails.php:68
+msgid "Payment needs review"
+msgstr ""
+
+#: includes/class-cod-shield-emails.php:70
+#: includes/class-cod-shield-order-ui.php:409
+msgid "Partial COD payment"
+msgstr ""
+
+#: includes/class-cod-shield-gateway-bridge.php:356
 msgid "COD advance finalization is waiting for a gateway transaction ID. Verify payment in the gateway dashboard before fulfilment."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-bridge.php:358
+#: includes/class-cod-shield-gateway-bridge.php:357
 msgid "COD advance finalization was blocked because the payment method differs from the recorded advance gateway. Verify the payment and gateway before fulfilment."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-bridge.php:359
+#: includes/class-cod-shield-gateway-bridge.php:358
 msgid "COD advance finalization was blocked because no valid order total could be restored. Review the order totals and payment before fulfilment."
 msgstr ""
 
 #. translators: 1: charged amount, 2: advance amount, 3: transaction id, 4: remaining amount.
-#: includes/class-cod-shield-gateway-bridge.php:485
+#: includes/class-cod-shield-gateway-bridge.php:483
 #, php-format
-msgid "WARNING: the order total at payment completion (%1$s) exceeded the recorded advance (%2$s) — the gateway may have charged more than the advance (transaction: %3$s). The order was NOT converted to COD; %4$s remains payable on delivery. Verify the charge in the gateway dashboard before fulfilment."
+msgid "WARNING: the order total at payment completion (%1$s) differed from the recorded advance (%2$s) — the gateway may have charged a different amount (transaction: %3$s). The order was NOT converted to COD; %4$s remains payable on delivery. Verify the charge in the gateway dashboard before fulfilment."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-bridge.php:499
+#: includes/class-cod-shield-gateway-bridge.php:497
+#: includes/class-cod-shield-order-editor.php:117
 msgid "Cash on delivery"
 msgstr ""
 
 #. translators: 1: advance amount, 2: user display name.
-#: includes/class-cod-shield-gateway-bridge.php:515
+#: includes/class-cod-shield-gateway-bridge.php:516
 #, php-format
 msgid "COD advance of %1$s manually marked as paid by %2$s — no gateway transaction recorded. Verify collection separately."
 msgstr ""
 
 #. translators: 1: advance amount, 2: gateway id, 3: transaction id, 4: remaining amount.
-#: includes/class-cod-shield-gateway-bridge.php:525
+#: includes/class-cod-shield-gateway-bridge.php:526
 #, php-format
 msgid "COD advance of %1$s collected via %2$s (transaction: %3$s). %4$s remains payable on delivery."
 msgstr ""
 
 #. translators: %d: administrator user ID.
-#: includes/class-cod-shield-gateway-bridge.php:586
+#: includes/class-cod-shield-gateway-bridge.php:590
 #, php-format
 msgid "Stale COD advance attempt released for retry by user #%d. No payment was marked as received. Verify the original attempt with the gateway before retrying."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-bridge.php:646
+#: includes/class-cod-shield-gateway-bridge.php:650
 msgid "Stale advance attempt released. The advance remains unpaid and can be retried."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-bridge.php:647
+#: includes/class-cod-shield-gateway-bridge.php:651
 msgid "Attempt not released. Check your permission, reload the order, and verify that it is stale with no transaction or review flag."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-bridge.php:648
+#: includes/class-cod-shield-gateway-bridge.php:652
 msgid "COD advance marked as paid. The order was converted to Cash on Delivery."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-bridge.php:649
+#: includes/class-cod-shield-gateway-bridge.php:653
 msgid "You do not have permission to mark an advance as paid."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-bridge.php:650
+#: includes/class-cod-shield-gateway-bridge.php:654
 msgid "The order could not be found, or its advance is already paid."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-bridge.php:708
+#: includes/class-cod-shield-gateway-bridge.php:709
 msgid "Moved back to pending: this order cannot be processing or completed while its COD advance is unpaid."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-bridge.php:759
+#: includes/class-cod-shield-gateway-bridge.php:760
 msgid "ADVANCE RECONCILIATION REQUIRED: this order was cancelled while an advance payment may have been captured. Verify with the gateway and refund if charged."
 msgstr ""
 
@@ -284,608 +285,379 @@ msgstr ""
 msgid "Internal proxy gateway that collects a partial advance payment on COD orders via an existing enabled gateway. Not shown in gateway settings."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-cod-advance.php:172
+#: includes/class-cod-shield-gateway-cod-advance.php:167
 msgid "An advance payment for this order is already being processed. Please wait for confirmation before retrying."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-cod-advance.php:183
+#: includes/class-cod-shield-gateway-cod-advance.php:179
 msgid "The advance payment is not available for this order. Please choose a different payment method."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-cod-advance.php:207
+#: includes/class-cod-shield-gateway-cod-advance.php:203
 #: includes/class-cod-shield-gateway-cod-advance.php:256
 msgid "The advance payment could not be started safely. Please choose another payment method."
 msgstr ""
 
 #. translators: 1: advance amount, 2: gateway title.
-#: includes/class-cod-shield-gateway-cod-advance.php:281
+#: includes/class-cod-shield-gateway-cod-advance.php:282
 #, php-format
 msgid "Advance payment of %1$s initiated via %2$s. Awaiting gateway confirmation."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-cod-advance.php:292
+#: includes/class-cod-shield-gateway-cod-advance.php:307
+msgid "Advance payment outcome is uncertain. Verify the gateway payment before retrying; the payment attempt remains locked."
+msgstr ""
+
+#: includes/class-cod-shield-gateway-cod-advance.php:314
 msgid "Gateway declined the payment or the customer abandoned it."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-cod-advance.php:302
+#: includes/class-cod-shield-gateway-cod-advance.php:324
 msgid "Advance payment failed; order cancelled per SureOrder settings."
 msgstr ""
 
 #. translators: %s: failure reason.
-#: includes/class-cod-shield-gateway-cod-advance.php:348
+#: includes/class-cod-shield-gateway-cod-advance.php:370
 #, php-format
 msgid "COD advance payment failed: %s"
 msgstr ""
 
-#: includes/class-cod-shield-order-meta.php:195
+#. translators: 1: changed field, 2: old amount, 3: new amount, 4: user ID, 5: reason, 6: reference.
+#: includes/class-cod-shield-order-editor.php:130
+#, php-format
+msgid "Partial COD correction — %1$s: %2$s → %3$s by user #%4$d. Reason: %5$s. Manual reference: %6$s. This records a correction only; no charge or refund was issued."
+msgstr ""
+
+#: includes/class-cod-shield-order-editor.php:165
+msgid "Partial COD record updated. No charge or refund was issued."
+msgstr ""
+
+#: includes/class-cod-shield-order-editor.php:166
+msgid "Correction refused. Check your permission and reload the order."
+msgstr ""
+
+#: includes/class-cod-shield-order-editor.php:167
+msgid "The order changed since this page loaded. Reload it before correcting payment details."
+msgstr ""
+
+#: includes/class-cod-shield-order-editor.php:168
+msgid "This payment record is locked. Reconcile any pending attempt or review state before editing."
+msgstr ""
+
+#: includes/class-cod-shield-order-editor.php:169
+msgid "Enter a reason and a valid amount within the order total, using the currency precision."
+msgstr ""
+
+#: includes/class-cod-shield-order-editor.php:196
+msgid "Partial COD needs review: the revised order total is below the recorded or required advance. No charge or refund was issued."
+msgstr ""
+
+#: includes/class-cod-shield-order-meta.php:289
 #: includes/class-cod-shield-settings.php:27
-#: includes/class-cod-shield-settings.php:643
+#: includes/class-cod-shield-settings.php:250
 msgid "SureOrder"
 msgstr ""
 
-#: includes/class-cod-shield-order-meta.php:197
+#: includes/class-cod-shield-order-meta.php:291
 msgid "RIRCOD"
 msgstr ""
 
-#: includes/class-cod-shield-order-ui.php:76
-#: includes/class-cod-shield-order-ui.php:80
+#: includes/class-cod-shield-order-ui.php:77
+#: includes/class-cod-shield-order-ui.php:81
 msgid "COD Advance"
 msgstr ""
 
-#: includes/class-cod-shield-order-ui.php:125
+#: includes/class-cod-shield-order-ui.php:126
 msgid "No advance"
 msgstr ""
 
 #. translators: 1: status, 2: remaining amount.
-#: includes/class-cod-shield-order-ui.php:138
+#: includes/class-cod-shield-order-ui.php:139
 #, php-format
 msgid "Status: %1$s — %2$s due on delivery"
 msgstr ""
 
-#: includes/class-cod-shield-order-ui.php:215
+#: includes/class-cod-shield-order-ui.php:216
 msgid "All COD states"
 msgstr ""
 
-#: includes/class-cod-shield-order-ui.php:216
+#: includes/class-cod-shield-order-ui.php:217
 msgid "COD with advance"
 msgstr ""
 
 #: includes/class-cod-shield-order-ui.php:218
-msgid "Advance pending/failed"
+#: includes/class-cod-shield-order-ui.php:557
+msgid "Advance paid"
 msgstr ""
 
 #: includes/class-cod-shield-order-ui.php:219
+msgid "Advance pending/failed"
+msgstr ""
+
+#: includes/class-cod-shield-order-ui.php:220
 msgid "COD no advance"
 msgstr ""
 
-#: includes/class-cod-shield-order-ui.php:403
-msgid "SureOrder — Advance Payment"
-msgstr ""
-
-#: includes/class-cod-shield-order-ui.php:428
+#: includes/class-cod-shield-order-ui.php:434
 msgid "No advance payment was collected for this order."
 msgstr ""
 
-#: includes/class-cod-shield-order-ui.php:434
-msgid "Advance collected"
+#: includes/class-cod-shield-order-ui.php:441
+msgid "Order total"
 msgstr ""
 
-#: includes/class-cod-shield-order-ui.php:435
-msgid "Status"
+#: includes/class-cod-shield-order-ui.php:442
+msgid "Advance rule"
 msgstr ""
 
-#: includes/class-cod-shield-order-ui.php:436
-msgid "Source"
-msgstr ""
-
-#: includes/class-cod-shield-order-ui.php:437
-msgid "Gateway used"
-msgstr ""
-
-#: includes/class-cod-shield-order-ui.php:438
-msgid "Transaction ID"
-msgstr ""
-
-#: includes/class-cod-shield-order-ui.php:444
-msgid "Active — awaiting gateway confirmation"
+#: includes/class-cod-shield-order-ui.php:443
+#: includes/class-cod-shield-order-ui.php:505
+msgid "Required advance"
 msgstr ""
 
 #: includes/class-cod-shield-order-ui.php:445
-msgid "Stale — verify the gateway before releasing for retry"
+msgid "Status"
 msgstr ""
 
 #: includes/class-cod-shield-order-ui.php:446
-msgid "Legacy / unknown — no valid attempt timestamp; reconcile manually"
+msgid "Source"
 msgstr ""
 
 #: includes/class-cod-shield-order-ui.php:447
-msgid "Payment recorded — retry release blocked"
+msgid "Gateway used"
 msgstr ""
 
 #: includes/class-cod-shield-order-ui.php:448
-msgid "Reconciliation review — retry release blocked"
+msgid "Gateway transaction"
 msgstr ""
 
 #: includes/class-cod-shield-order-ui.php:449
-msgid "No active attempt"
+#: includes/class-cod-shield-order-ui.php:510
+msgid "Manual reference"
 msgstr ""
 
-#: includes/class-cod-shield-order-ui.php:452
-msgid "Attempt state"
+#: includes/class-cod-shield-order-ui.php:450
+msgid "Payment recorded (UTC)"
 msgstr ""
 
-#: includes/class-cod-shield-order-ui.php:465
-msgid "Have you verified with the gateway that this attempt collected no money? Releasing permits another payment attempt. A delayed original payment could otherwise charge the customer twice."
+#: includes/class-cod-shield-order-ui.php:454
+msgid "Expected balance after advance"
+msgstr ""
+
+#: includes/class-cod-shield-order-ui.php:457
+msgid "Last correction"
+msgstr ""
+
+#. translators: 1: user ID, 2: UTC timestamp, 3: reason.
+#: includes/class-cod-shield-order-ui.php:459
+#, php-format
+msgid "User #%1$d · %2$s UTC · %3$s"
+msgstr ""
+
+#: includes/class-cod-shield-order-ui.php:468
+msgid "Active — awaiting gateway confirmation"
 msgstr ""
 
 #: includes/class-cod-shield-order-ui.php:469
+msgid "Stale — verify the gateway before releasing for retry"
+msgstr ""
+
+#: includes/class-cod-shield-order-ui.php:470
+msgid "Legacy / unknown — no valid attempt timestamp; reconcile manually"
+msgstr ""
+
+#: includes/class-cod-shield-order-ui.php:471
+msgid "Payment recorded — retry release blocked"
+msgstr ""
+
+#: includes/class-cod-shield-order-ui.php:472
+msgid "Reconciliation review — retry release blocked"
+msgstr ""
+
+#: includes/class-cod-shield-order-ui.php:473
+msgid "No active attempt"
+msgstr ""
+
+#: includes/class-cod-shield-order-ui.php:476
+msgid "Attempt state"
+msgstr ""
+
+#: includes/class-cod-shield-order-ui.php:489
+msgid "Have you verified with the gateway that this attempt collected no money? Releasing permits another payment attempt. A delayed original payment could otherwise charge the customer twice."
+msgstr ""
+
+#: includes/class-cod-shield-order-ui.php:493
 msgid "Release stale attempt for retry"
 msgstr ""
 
-#: includes/class-cod-shield-order-ui.php:478
-msgid "Mark the advance as paid without a gateway transaction? Only do this if you have collected the advance elsewhere (e.g. bank transfer or cash)."
+#: includes/class-cod-shield-order-ui.php:498
+msgid "Edit advance / record payment correction"
 msgstr ""
 
-#: includes/class-cod-shield-order-ui.php:482
-msgid "Mark advance as paid (manual)"
+#: includes/class-cod-shield-order-ui.php:502
+msgid "Field to correct"
 msgstr ""
 
-#: includes/class-cod-shield-order-ui.php:486
+#: includes/class-cod-shield-order-ui.php:503
+msgid "Advance actually received"
+msgstr ""
+
+#: includes/class-cod-shield-order-ui.php:509
+msgid "Correct amount"
+msgstr ""
+
+#: includes/class-cod-shield-order-ui.php:511
+msgid "Reason for correction (required)"
+msgstr ""
+
+#: includes/class-cod-shield-order-ui.php:515
+msgid "Enter the total advance received, not an additional payment. Saving records a correction only; it does not charge or refund the customer."
+msgstr ""
+
+#: includes/class-cod-shield-order-ui.php:516
+msgid "Save payment correction"
+msgstr ""
+
+#: includes/class-cod-shield-order-ui.php:519
 msgid "Refunds of the advance must be processed manually through the gateway's own refund flow."
 msgstr ""
 
 #. translators: %s: gateway id.
-#: includes/class-cod-shield-order-ui.php:528
+#: includes/class-cod-shield-order-ui.php:555
+#, php-format
+msgid "Advance paid (via %s)"
+msgstr ""
+
+#. translators: %s: gateway id.
+#: includes/class-cod-shield-order-ui.php:561
 #, php-format
 msgid "Advance pending (via %s)"
 msgstr ""
 
-#: includes/class-cod-shield-order-ui.php:530
+#: includes/class-cod-shield-order-ui.php:563
 msgid "Advance pending"
 msgstr ""
 
-#: includes/class-cod-shield-pdf-support.php:81
-msgid "Advance paid online"
-msgstr ""
-
-#: includes/class-cod-shield-pdf-support.php:85
-msgid "Balance due on delivery"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:126
+#: includes/class-cod-shield-settings.php:94
 msgid "Setup"
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:127
-msgid "Advanced Rules"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:133
-msgid "COD Fee"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:134
-msgid "Messages"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:135
-#: includes/class-cod-shield-settings.php:529
-msgid "Order Handling"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:146
+#: includes/class-cod-shield-settings.php:104
 msgid "Select a supported gateway…"
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:159
+#: includes/class-cod-shield-settings.php:117
 msgid "Set up SureOrder"
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:161
-msgid "Collect a small online advance to confirm COD orders. Complete the three steps below; optional controls are in the other tabs."
+#: includes/class-cod-shield-settings.php:119
+msgid "Collect a fixed or percentage advance through an existing payment gateway, with the remaining balance due on delivery."
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:169
-msgid "1. Enable Cash on Delivery"
+#: includes/class-cod-shield-settings.php:127
+msgid "Enable partial COD"
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:170
-msgid "Show COD at checkout when the order is eligible."
+#: includes/class-cod-shield-settings.php:128
+msgid "Collect an advance on COD orders. Turning this off leaves WooCommerce COD unchanged."
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:176
-msgid "2. Choose the advance"
+#: includes/class-cod-shield-settings.php:135
+msgid "Advance type"
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:181
-msgid "No advance — plain COD"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:182
-#: includes/class-cod-shield-settings.php:390
-msgid "Fixed amount (₹)"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:183
-#: includes/class-cod-shield-settings.php:391
-msgid "Percentage of order total"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:185
-msgid "Choose how the upfront payment is calculated."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:188
+#: includes/class-cod-shield-settings.php:141
 msgid "Fixed amount"
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:197
-msgid "Used when Fixed amount is selected."
+#: includes/class-cod-shield-settings.php:142
+msgid "Percentage of order total"
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:200
-msgid "Percentage"
+#: includes/class-cod-shield-settings.php:144
+msgid "Choose how the upfront payment is calculated."
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:210
-msgid "Used when Percentage is selected."
+#: includes/class-cod-shield-settings.php:147
+msgid "Advance value"
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:213
-msgid "3. Select an advance gateway"
+#: includes/class-cod-shield-settings.php:156
+msgid "Amount in the store currency. The advance cannot exceed the order total."
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:220
-msgid "Only explicitly supported gateway plugins are shown. Test the installed gateway version before going live."
+#: includes/class-cod-shield-settings.php:159
+msgid "Advance value (%)"
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:237
-msgid "Advanced advance rules"
+#: includes/class-cod-shield-settings.php:169
+msgid "Percentage of the final order total after discounts, including shipping and taxes."
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:239
-msgid "Optional limits for the advance amount and COD order value. Leave a value at 0 to disable that limit."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:243
-msgid "Minimum advance"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:251
-msgid "Never charge less than this, even when the percentage would be lower. Leave 0 for no minimum."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:254
-msgid "Maximum advance"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:262
-msgid "Never charge more than this, even when the percentage would be higher. Leave 0 for no maximum."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:265
-msgid "Minimum order value for COD"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:275
-msgid "Orders below this amount cannot use COD. Leave 0 for no minimum."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:282
-msgid "Eligibility rules"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:284
-msgid "Optionally limit COD by order value or delivery pincode."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:288
-msgid "Maximum order value for COD"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:296
-msgid "Orders above this amount cannot use COD. Leave 0 for no maximum."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:299
-msgid "Excluded delivery pincodes"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:304
-msgid "110001, 400*"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:305
-msgid "Separate pincodes with commas, spaces, or new lines. Add * at the end to exclude a range, for example 400*."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:308
-msgid "Excluded shipping zones"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:313
-msgid "3, 7"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:314
-msgid "Zone IDs. COD is hidden when the chosen shipping method belongs to any excluded zone. Separate IDs with commas or new lines."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:317
-msgid "Excluded shipping methods"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:322
-msgid "local_pickup, flat_rate:23"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:323
-msgid "Shipping method IDs, optionally with an instance ID like flat_rate:23. Without an instance, every instance of that method excludes COD."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:326
-msgid "Excluded products"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:331
-msgid "12, 77"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:332
-msgid "Product or variation IDs. A variation is excluded by its own ID or its parent product. Any matching cart item hides COD."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:335
-msgid "Excluded product categories"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:340
-msgid "4, 15"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:341
-msgid "Category IDs. Any cart item in an excluded category hides COD."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:344
-msgid "Excluded shipping classes"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:349
-msgid "9, 31"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:350
-msgid "Shipping class IDs. Any cart item with an excluded shipping class hides COD."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:365
-msgid "Standard"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:372
-msgid "Extra COD Fee"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:374
-msgid "Charge an additional fee on COD orders. The fee applies to both plain COD orders and COD orders with an advance. On the block checkout the fee is applied to the order at placement, so it appears in the final total rather than in the cart preview."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:378
-msgid "Enable extra COD fee"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:379
-msgid "Add a fee to orders paid by Cash on Delivery."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:385
-msgid "Fee type"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:393
-msgid "How the COD fee is calculated."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:396
-msgid "Fee amount"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:404
-msgid "Flat fee in ₹ (when type is Fixed)."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:407
-msgid "Fee percentage"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:416
-msgid "Percentage of the order total (when type is Percentage)."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:419
-msgid "Enable tax rates on the fee"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:420
-msgid "Apply WooCommerce tax rates to the extra COD fee."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:426
-msgid "Fee tax class"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:431
-msgid "Tax class used when tax rates are enabled on the fee."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:448
-msgid "Checkout Messaging"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:450
-msgid "Messages shown near the COD payment method at checkout. Each can be disabled independently of the underlying logic. Available placeholders: {advance_amount}, {remaining_amount}, {percentage}."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:454
-msgid "Checkout title"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:455
-msgid "Optional customer-facing name for COD. Leave blank to keep the WooCommerce title."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:462
-msgid "Advance message"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:463
-msgid "Show the advance notice when an advance is required."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:469
-msgid "Advance message text"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:476
-msgid "Risk-free message"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:477
-msgid "Show the trust-building message when no advance applies."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:483
-msgid "Risk-free message text"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:490
-msgid "Order Emails"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:492
-msgid "Append an advance-payment summary to WooCommerce order emails (customer and admin). It renders only after the advance has been collected. Placeholders: {advance_amount}, {remaining_amount}, {gateway}."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:496
-msgid "Show advance summary in emails"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:497
-msgid "Append the paid advance and due-on-delivery amounts to order emails."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:503
-msgid "Email summary heading"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:508
-msgid "Optional heading shown above the amount rows. Leave blank for rows only. Supports {advance_amount}, {remaining_amount} and {gateway}."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:531
-msgid "Behaviour of orders when the advance payment fails or is abandoned at the gateway."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:535
-msgid "Stale advance attempt interval (minutes)"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:544
-msgid "After this interval, an unpaid attempt can be explicitly released for retry from the order screen. Verify the gateway first. Attempts without a timestamp, with a transaction, or under review remain protected."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:547
-msgid "On advance payment failure"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:552
-msgid "Keep order as pending — customer can retry"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:553
-msgid "Cancel the order — order is not placed"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:555
-msgid "\"Allow\" leaves the order in Pending so the customer can retry payment. \"Block\" cancels the order so a new checkout is required."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:558
-msgid "Order status after advance is paid"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:569
-msgid "On hold"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:570
-msgid "Processing"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:572
-msgid "Applied once the advance is collected. Processing is recommended (the advance is already collected online); On hold mirrors native COD behaviour."
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:629
-msgid "COD is turned off"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:632
-msgid "Ready for checkout"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:632
-msgid "Needs attention"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:637
-msgid "Configuration status"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:644
-#: includes/class-cod-shield-settings.php:648
-msgid "Enabled"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:644
-#: includes/class-cod-shield-settings.php:648
-msgid "Disabled"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:647
-msgid "WooCommerce COD gateway"
-msgstr ""
-
-#: includes/class-cod-shield-settings.php:651
+#: includes/class-cod-shield-settings.php:172
+#: includes/class-cod-shield-settings.php:258
 msgid "Advance gateway"
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:678
+#: includes/class-cod-shield-settings.php:179
+msgid "Only explicitly supported gateway plugins are shown. Test the installed gateway version before going live."
+msgstr ""
+
+#: includes/class-cod-shield-settings.php:236
+msgid "Partial COD is off — native COD is unchanged"
+msgstr ""
+
+#: includes/class-cod-shield-settings.php:239
+msgid "Configuration saved"
+msgstr ""
+
+#: includes/class-cod-shield-settings.php:239
+msgid "Needs attention"
+msgstr ""
+
+#: includes/class-cod-shield-settings.php:244
+msgid "Configuration status"
+msgstr ""
+
+#: includes/class-cod-shield-settings.php:251
+#: includes/class-cod-shield-settings.php:255
+msgid "Enabled"
+msgstr ""
+
+#: includes/class-cod-shield-settings.php:251
+#: includes/class-cod-shield-settings.php:255
+msgid "Disabled"
+msgstr ""
+
+#: includes/class-cod-shield-settings.php:254
+msgid "WooCommerce COD gateway"
+msgstr ""
+
+#: includes/class-cod-shield-settings.php:285
 msgid "SureOrder needs attention:"
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:679
+#: includes/class-cod-shield-settings.php:286
 msgid "WooCommerce Cash on Delivery is disabled, so COD cannot appear at checkout."
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:680
+#: includes/class-cod-shield-settings.php:287
 msgid "Enable the COD gateway"
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:686
+#: includes/class-cod-shield-settings.php:293
 msgid "Advance setup is incomplete:"
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:687
-msgid "Advance payment is enabled, but no eligible gateway is selected. Choose and test one in Step 3, or use plain COD."
+#: includes/class-cod-shield-settings.php:294
+msgid "Advance payment is enabled, but no eligible gateway is selected. Choose and test an advance gateway, or turn partial COD off."
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:876
+#: includes/class-cod-shield-settings.php:402
 msgid "Not required — plain COD"
 msgstr ""
 
-#: includes/class-cod-shield-settings.php:882
+#: includes/class-cod-shield-settings.php:408
 msgid "Select and test a gateway"
 msgstr ""
 
@@ -909,8 +681,4 @@ msgstr ""
 
 #: public/js/blocks/payment-method.js:132
 msgid "Updating payment totals…"
-msgstr ""
-
-#: public/js/blocks/payment-method.js:151
-msgid "Pay advance & confirm COD"
 msgstr ""

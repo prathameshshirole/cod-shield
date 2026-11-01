@@ -51,7 +51,7 @@ class Order_Meta {
 	public $source;
 
 	/**
-	 * Advance already collected.
+	 * Required advance amount.
 	 *
 	 * @var float
 	 */
@@ -63,6 +63,69 @@ class Order_Meta {
 	 * @var float
 	 */
 	public $remaining = 0.0;
+
+	/**
+	 * Recorded money received, distinct from the required advance.
+	 *
+	 * @var float
+	 */
+	public $received = 0.0;
+
+	/**
+	 * Expected delivery balance after the required advance.
+	 *
+	 * @var float
+	 */
+	public $expected_remaining = 0.0;
+
+	/**
+	 * Order currency.
+	 *
+	 * @var string
+	 */
+	public $currency = '';
+
+	/**
+	 * Original calculation mode.
+	 *
+	 * @var string
+	 */
+	public $mode = '';
+
+	/**
+	 * Original configured calculation value.
+	 *
+	 * @var string
+	 */
+	public $value = '';
+
+	/**
+	 * Collection source: gateway or manual.
+	 *
+	 * @var string
+	 */
+	public $payment_source = '';
+
+	/**
+	 * Separate manual reference; never replaces gateway evidence.
+	 *
+	 * @var string
+	 */
+	public $manual_reference = '';
+
+	/**
+	 * Collection timestamp.
+	 *
+	 * @var int
+	 */
+	public $paid_at = 0;
+
+	/**
+	 * Last correction attribution.
+	 *
+	 * @var array
+	 */
+	public $last_correction = array();
 
 	/**
 	 * Full order total at creation time.
@@ -109,21 +172,36 @@ class Order_Meta {
 			return new self();
 		}
 
-		return self::from_meta_array(
+		$view           = self::from_meta_array(
 			array(
-				Core::META_ADVANCE        => $order->get_meta( Core::META_ADVANCE ),
-				Core::META_REMAINING      => $order->get_meta( Core::META_REMAINING ),
-				Core::META_ORIGINAL_TOTAL => $order->get_meta( Core::META_ORIGINAL_TOTAL ),
-				Core::META_GATEWAY_USED   => $order->get_meta( Core::META_GATEWAY_USED ),
-				Core::META_TXN            => $order->get_meta( Core::META_TXN ),
-				Core::META_STATUS         => $order->get_meta( Core::META_STATUS ),
-				Core::META_AWAITING       => $order->get_meta( Core::META_AWAITING ),
-				self::RIRCOD_IS_COD       => $order->get_meta( self::RIRCOD_IS_COD ),
-				self::RIRCOD_ADVANCE      => $order->get_meta( self::RIRCOD_ADVANCE ),
-				self::RIRCOD_COD_AMOUNT   => $order->get_meta( self::RIRCOD_COD_AMOUNT ),
-				self::RIRCOD_TOTAL        => $order->get_meta( self::RIRCOD_TOTAL ),
+				Core::META_RECEIVED         => $order->get_meta( Core::META_RECEIVED ),
+				Core::META_MODE             => $order->get_meta( Core::META_MODE ),
+				Core::META_VALUE            => $order->get_meta( Core::META_VALUE ),
+				Core::META_PAYMENT_SOURCE   => $order->get_meta( Core::META_PAYMENT_SOURCE ),
+				Core::META_PAID_AT          => $order->get_meta( Core::META_PAID_AT ),
+				Core::META_MANUAL_REFERENCE => $order->get_meta( Core::META_MANUAL_REFERENCE ),
+				Core::META_LAST_CORRECTION  => $order->get_meta( Core::META_LAST_CORRECTION ),
+				Core::META_ADVANCE          => $order->get_meta( Core::META_ADVANCE ),
+				Core::META_REMAINING        => $order->get_meta( Core::META_REMAINING ),
+				Core::META_ORIGINAL_TOTAL   => $order->get_meta( Core::META_ORIGINAL_TOTAL ),
+				Core::META_GATEWAY_USED     => $order->get_meta( Core::META_GATEWAY_USED ),
+				Core::META_TXN              => $order->get_meta( Core::META_TXN ),
+				Core::META_STATUS           => $order->get_meta( Core::META_STATUS ),
+				Core::META_AWAITING         => $order->get_meta( Core::META_AWAITING ),
+				self::RIRCOD_IS_COD         => $order->get_meta( self::RIRCOD_IS_COD ),
+				self::RIRCOD_ADVANCE        => $order->get_meta( self::RIRCOD_ADVANCE ),
+				self::RIRCOD_COD_AMOUNT     => $order->get_meta( self::RIRCOD_COD_AMOUNT ),
+				self::RIRCOD_TOTAL          => $order->get_meta( self::RIRCOD_TOTAL ),
 			)
 		);
+		$view->currency = is_callable( array( $order, 'get_currency' ) ) ? $order->get_currency() : '';
+		// An in-flight gateway order temporarily carries only the advance total.
+		if ( $view->has_data() && 'yes' !== $order->get_meta( Core::META_ATTEMPT_STARTED ) && ( 'yes' !== $order->get_meta( Core::META_AWAITING ) || 'no' === $order->get_meta( Core::META_ATTEMPT_STARTED ) ) ) {
+			$view->total = (float) $order->get_total();
+		}
+		$view->remaining          = max( 0.0, $view->total - $view->received );
+		$view->expected_remaining = max( 0.0, $view->total - $view->advance );
+		return $view;
 	}
 
 	/**
@@ -149,6 +227,20 @@ class Order_Meta {
 			if ( '' === $view->status ) {
 				$view->status = self::is_truthy( $m[ Core::META_AWAITING ] ?? '' ) ? 'pending' : '';
 			}
+			if ( 'review' === ( $m[ Core::META_AWAITING ] ?? '' ) ) {
+				$view->status = 'review';
+			}
+			$received                 = $m[ Core::META_RECEIVED ] ?? '';
+			$view->received           = is_numeric( $received ) ? (float) $received : ( 'paid' === ( $m[ Core::META_STATUS ] ?? '' ) ? $advance : 0.0 );
+			$view->total              = $view->total > 0 ? $view->total : $advance + $view->remaining;
+			$view->remaining          = max( 0.0, $view->total - $view->received );
+			$view->expected_remaining = max( 0.0, $view->total - $advance );
+			$view->mode               = (string) ( $m[ Core::META_MODE ] ?? '' );
+			$view->value              = (string) ( $m[ Core::META_VALUE ] ?? '' );
+			$view->payment_source     = (string) ( $m[ Core::META_PAYMENT_SOURCE ] ?? '' );
+			$view->manual_reference   = (string) ( $m[ Core::META_MANUAL_REFERENCE ] ?? '' );
+			$view->paid_at            = (int) ( $m[ Core::META_PAID_AT ] ?? 0 );
+			$view->last_correction    = is_array( $m[ Core::META_LAST_CORRECTION ] ?? null ) ? $m[ Core::META_LAST_CORRECTION ] : array();
 			return $view;
 		}
 
@@ -162,10 +254,12 @@ class Order_Meta {
 				return $view; // Flagged but no amounts recorded — nothing to display.
 			}
 
-			$view->source    = self::SOURCE_RIRCOD;
-			$view->advance   = $advance;
-			$view->remaining = $remaining;
-			$view->total     = $total > 0 ? $total : ( $advance + $remaining );
+			$view->received           = $advance;
+			$view->expected_remaining = $remaining;
+			$view->source             = self::SOURCE_RIRCOD;
+			$view->advance            = $advance;
+			$view->remaining          = $remaining;
+			$view->total              = $total > 0 ? $total : ( $advance + $remaining );
 			// RIRCOD doesn't track gateway/txn; reuse ours if they happen to exist.
 			$view->gateway = (string) ( $m[ Core::META_GATEWAY_USED ] ?? '' );
 			$view->txn     = (string) ( $m[ Core::META_TXN ] ?? '' );

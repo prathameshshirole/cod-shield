@@ -264,7 +264,7 @@ class EligibilityTest extends TestCase {
 		$this->assertStringContainsString( "array( \$this, 'filter_available_gateways' ), 30", $eligibility_source );
 		$this->assertStringContainsString( '$core->native_cod_enabled()', $blocks_source );
 		$live_source = file_get_contents( dirname( __DIR__, 2 ) . '/includes/class-cod-shield-blocks.php' );
-		$this->assertStringContainsString( 'Eligibility::evaluate_current_cart()', $live_source );
+		$this->assertStringNotContainsString( 'Eligibility::evaluate_current_cart()', $live_source );
 		$this->assertStringContainsString( "'cod_ineligibility_message'", $live_source );
 	}
 }

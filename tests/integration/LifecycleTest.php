@@ -52,11 +52,11 @@ class Cod_Shield_Lifecycle_Test extends WP_UnitTestCase {
 		$result  = $gateway->process_payment( $order->get_id() );
 		$order  = $this->reload_order( $order->get_id() );
 
-		$this->assertSame( 'Pay on Delivery', $gateway->get_title() );
+		$this->assertStringContainsString( 'Cash on Delivery', $gateway->get_title() );
 		$this->assertSame( 'success', $result['result'] );
 		$this->assertSame( 100.0, (float) $order->get_total() );
 		$this->assertSame( 'cod', $order->get_payment_method() );
-		$this->assertSame( 'Pay on Delivery', $order->get_payment_method_title() );
+		$this->assertSame( 'Cash on delivery', $order->get_payment_method_title() );
 		$this->assertSame( 'txn-stub-001', $order->get_transaction_id() );
 		$this->assertSame( 'txn-stub-001', $order->get_meta( Core::META_TXN ) );
 		$this->assertSame( 'paid', $order->get_meta( Core::META_STATUS ) );
@@ -97,7 +97,7 @@ class Cod_Shield_Lifecycle_Test extends WP_UnitTestCase {
 		$this->assertSame( 2, $this->stub_gateway->process_count );
 	}
 
-	#[TestDox( 'Configured blocking cancels an order after delegation failure' )]
+	#[TestDox( 'Retired cancellation setting does not cancel failed orders' )]
 	public function test_failed_delegation_can_cancel_order(): void {
 		update_option( Core::OPT_FAILURE, 'block' );
 		$this->stub_gateway->should_succeed = false;
@@ -106,7 +106,7 @@ class Cod_Shield_Lifecycle_Test extends WP_UnitTestCase {
 		( new Gateway_COD_Advance() )->process_payment( $order->get_id() );
 		$order = $this->reload_order( $order->get_id() );
 
-		$this->assertSame( 'cancelled', $order->get_status() );
+		$this->assertSame( 'pending', $order->get_status() );
 		$this->assertSame( 100.0, (float) $order->get_total() );
 	}
 
@@ -326,11 +326,13 @@ class Cod_Shield_Lifecycle_Test extends WP_UnitTestCase {
 
 		WC()->session->set( 'chosen_payment_method', Core::GATEWAY_ID );
 		$errors = $checkout->filter_store_api_cart_errors( new WP_Error(), $cart );
-		$this->assertTrue( $errors->has_errors() );
-		$this->assertNotEmpty( $errors->get_error_message( 'cod_shield_minimum' ) );
+		$this->assertFalse( $errors->has_errors(), 'Retired minimum must not block checkout.' );
+		WC()->session->set( 'chosen_payment_method', 'cod' );
+		$errors = $checkout->filter_store_api_cart_errors( new WP_Error(), $cart );
+		$this->assertTrue( $errors->has_errors(), 'Native COD cannot bypass a required advance.' );
 	}
 
-	#[TestDox( 'Block COD fees appear in the cart and repeated totals do not duplicate them' )]
+	#[TestDox( 'Retired fee settings cannot add checkout fees' )]
 	public function test_block_cod_fee_is_idempotent(): void {
 		update_option( Core::OPT_FEE_ENABLED, 'yes' );
 		update_option( Core::OPT_FEE_AMOUNT, 30 );
@@ -340,12 +342,10 @@ class Cod_Shield_Lifecycle_Test extends WP_UnitTestCase {
 		$cart->set_cart_contents_total( 100 );
 		WC()->session->set( 'chosen_payment_method', Core::GATEWAY_ID );
 		$checkout->maybe_add_cod_fee( $cart );
-		$this->assertCount( 1, $cart->get_fees() );
-		$fees = $cart->get_fees();
-		$this->assertSame( 30.0, (float) reset( $fees )->amount );
+		$this->assertCount( 0, $cart->get_fees() );
 		$cart->fees_api()->remove_all_fees();
 		$checkout->maybe_add_cod_fee( $cart );
-		$this->assertCount( 1, $cart->get_fees() );
+		$this->assertCount( 0, $cart->get_fees() );
 		$cart->fees_api()->remove_all_fees();
 		WC()->session->set( 'chosen_payment_method', 'cod_shield_stub' );
 		$checkout->maybe_add_cod_fee( $cart );

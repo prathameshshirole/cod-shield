@@ -107,7 +107,6 @@ class Gateway_Bridge {
 		// Admin reconciliation: manually mark an advance as paid (e.g. the
 		// customer paid outside the gateway, or the gateway never recorded a
 		// transaction id). Nonce + capability checked in the handler.
-		add_action( 'admin_post_' . Core::NONCE_MANUAL_PAID, array( $this, 'handle_manual_mark_advance_paid' ) );
 		add_action( 'admin_post_' . Core::NONCE_RELEASE_ATTEMPT, array( $this, 'handle_release_stale_advance' ) );
 		add_action( 'admin_notices', array( $this, 'render_manual_paid_notice' ) );
 	}
@@ -163,7 +162,7 @@ class Gateway_Bridge {
 			$order_id = absint( get_query_var( 'order-pay' ) );
 			$order    = $order_id ? wc_get_order( $order_id ) : null;
 			if ( $order && $core->order_advance_outstanding( $order ) ) {
-				if ( $core->delegation_gateway() ) {
+				if ( $core->delegation_gateway( (string) $order->get_meta( Core::META_GATEWAY_USED ) ) ) {
 					$gateways[ Core::GATEWAY_ID ] = new Gateway_COD_Advance();
 				} else {
 					unset( $gateways[ Core::GATEWAY_ID ] );
@@ -416,7 +415,7 @@ class Gateway_Bridge {
 		}
 
 		$advance = (float) $order->get_meta( Core::META_ADVANCE );
-		if ( $advance <= 0 || 'paid' === $order->get_meta( Core::META_STATUS ) ) {
+		if ( $advance <= 0 || ( 'paid' === $order->get_meta( Core::META_STATUS ) && 'review' !== $order->get_meta( Core::META_AWAITING ) ) ) {
 			return false;
 		}
 
@@ -449,14 +448,9 @@ class Gateway_Bridge {
 
 		$core = Core::instance();
 
-		// Overcharge guard: if the order total at finalization materially
-		// exceeds the recorded advance, the delegation gateway recalculated
-		// order totals and charged more than the advance (worst case: the full
-		// order). Never silently convert such an order to COD with the
-		// remainder still "due on delivery" — that would double-charge the
-		// customer (online AND at the door). Flag it, mark the advance paid,
-		// and reduce the amount still due to what the gateway actually left
-		// unpaid. The payment method stays on the gateway.
+		// Amount mismatch guard: the gateway must collect the required advance
+		// to currency precision. Keep its reported amount as received and hold
+		// the order for review; never send an uncertain balance to fulfilment.
 		//
 		// Gateway path: the order total at finalization reflects what the
 		// gateway charged, so the comparison always applies.
@@ -469,20 +463,24 @@ class Gateway_Bridge {
 		$charged       = (float) $order->get_total();
 		$gateway_used  = (string) $order->get_meta( Core::META_GATEWAY_USED );
 		$guard_applies = ! $manual || ( '' !== $gateway_used && $order->get_payment_method() === $gateway_used );
-		if ( $guard_applies && $charged > $advance + 1.0 ) {
+		if ( $guard_applies && abs( $charged - $advance ) >= pow( 10, -wc_get_price_decimals() ) / 2 ) {
 			$remaining = max( 0.0, $original - $charged );
 			$order->set_total( $original );
 			$order->update_meta_data( Core::META_TXN, (string) $txn );
-			$order->update_meta_data( Core::META_STATUS, 'paid' );
+			$order->update_meta_data( Core::META_RECEIVED, $charged );
+			$order->update_meta_data( Core::META_PAYMENT_SOURCE, $manual ? 'manual' : 'gateway' );
+			$order->update_meta_data( Core::META_PAID_AT, time() );
+			$order->update_meta_data( Core::META_STATUS, 'review' );
 			$order->update_meta_data( Core::META_REMAINING, $remaining );
-			$order->update_meta_data( Core::META_AWAITING, 'no' );
+			$order->update_meta_data( Core::META_AWAITING, 'review' );
 			$order->delete_meta_data( Core::META_ATTEMPT_STARTED );
 			$order->delete_meta_data( Core::META_FINALIZATION_DIAGNOSTIC );
 			$order->save();
+			$order->update_status( 'on-hold' );
 			$order->add_order_note(
 				sprintf(
 					/* translators: 1: charged amount, 2: advance amount, 3: transaction id, 4: remaining amount. */
-					__( 'WARNING: the order total at payment completion (%1$s) exceeded the recorded advance (%2$s) — the gateway may have charged more than the advance (transaction: %3$s). The order was NOT converted to COD; %4$s remains payable on delivery. Verify the charge in the gateway dashboard before fulfilment.', 'cod-shield' ),
+					__( 'WARNING: the order total at payment completion (%1$s) differed from the recorded advance (%2$s) — the gateway may have charged a different amount (transaction: %3$s). The order was NOT converted to COD; %4$s remains payable on delivery. Verify the charge in the gateway dashboard before fulfilment.', 'cod-shield' ),
 					wc_price( $charged ),
 					wc_price( $advance ),
 					$txn ? $txn : '—',
@@ -502,6 +500,9 @@ class Gateway_Bridge {
 			$order->update_meta_data( Core::META_TXN, (string) $txn );
 		}
 		$order->update_meta_data( Core::META_STATUS, 'paid' );
+		$order->update_meta_data( Core::META_RECEIVED, $advance );
+		$order->update_meta_data( Core::META_PAYMENT_SOURCE, $manual ? 'manual' : 'gateway' );
+		$order->update_meta_data( Core::META_PAID_AT, time() );
 		$order->update_meta_data( Core::META_REMAINING, max( 0.0, $original - $advance ) );
 		$order->update_meta_data( Core::META_AWAITING, 'no' );
 		$order->delete_meta_data( Core::META_ATTEMPT_STARTED );
@@ -556,7 +557,7 @@ class Gateway_Bridge {
 		}
 		$order = wc_get_order( $order_id );
 		$core  = Core::instance();
-		if ( ! $order || 'stale' !== $core->payment_attempt_state( $order ) || ! $order->has_status( array( 'pending', 'failed' ) ) || ! in_array( $order->get_meta( Core::META_STATUS ), array( 'pending', 'failed' ), true ) ) {
+		if ( ! $order || 'stale' !== $core->payment_attempt_state( $order ) || ! $order->has_status( array( 'pending', 'failed', 'on-hold' ) ) || ! in_array( $order->get_meta( Core::META_STATUS ), array( 'pending', 'failed' ), true ) ) {
 			return false;
 		}
 		$original_raw = $order->get_meta( Core::META_ORIGINAL_TOTAL );
@@ -580,6 +581,9 @@ class Gateway_Bridge {
 		$order->update_meta_data( Core::META_ATTEMPT_STARTED, 'no' );
 		$order->delete_meta_data( Core::META_ATTEMPT_STARTED_AT );
 		$order->save();
+		if ( $order->has_status( 'on-hold' ) ) {
+			$order->update_status( 'pending' );
+		}
 		$order->add_order_note(
 			sprintf(
 				/* translators: %d: administrator user ID. */
@@ -696,11 +700,8 @@ class Gateway_Bridge {
 		}
 
 		$advance = (float) $order->get_meta( Core::META_ADVANCE );
-		if ( $advance <= 0 || 'paid' === $order->get_meta( Core::META_STATUS ) ) {
+		if ( $advance <= 0 || ( 'paid' === $order->get_meta( Core::META_STATUS ) && 'review' !== $order->get_meta( Core::META_AWAITING ) ) ) {
 			return; // Not an advance order, or the advance is already collected.
-		}
-		if ( $order->get_transaction_id() ) {
-			return; // Real gateway transaction recorded — advance is paid.
 		}
 
 		$order->update_status(
@@ -754,7 +755,7 @@ class Gateway_Bridge {
 		}
 
 		// Charge may have been captured even though the order was cancelled.
-		if ( $order->get_transaction_id() || 'yes' === $order->get_meta( Core::META_AWAITING ) ) {
+		if ( (float) $order->get_meta( Core::META_ADVANCE ) > 0 && ( $order->get_transaction_id() || 'yes' === $order->get_meta( Core::META_AWAITING ) ) ) {
 			$order->add_order_note(
 				__( 'ADVANCE RECONCILIATION REQUIRED: this order was cancelled while an advance payment may have been captured. Verify with the gateway and refund if charged.', 'cod-shield' )
 			);

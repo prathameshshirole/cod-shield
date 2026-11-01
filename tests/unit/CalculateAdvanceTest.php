@@ -41,6 +41,15 @@ class CalculateAdvanceTest extends TestCase {
 		$this->assertSame( 0.0, Core::calculate_advance( 1000, $this->settings( array( 'mode' => 'disabled' ) ) ) );
 	}
 
+	public function testInvalidInputsCannotProduceNegativeOrNonFiniteAdvance() {
+		$this->assertSame( 0.0, Core::calculate_advance( INF, $this->settings() ) );
+		$this->assertSame( 0.0, Core::calculate_advance( NAN, $this->settings() ) );
+		$this->assertSame( 0.0, Core::calculate_advance( 1000, $this->settings( array( 'mode' => 'unknown' ) ) ) );
+		foreach ( array( -10, INF, NAN ) as $value ) {
+			$this->assertSame( 0.0, Core::calculate_advance( 1000, $this->settings( array( 'fixed' => $value, 'min' => 0, 'max' => 0 ) ) ) );
+		}
+	}
+
 	public function testZeroAndNegativeTotalsReturnZero() {
 		$this->assertSame( 0.0, Core::calculate_advance( 0, $this->settings() ) );
 		$this->assertSame( 0.0, Core::calculate_advance( -50, $this->settings() ) );

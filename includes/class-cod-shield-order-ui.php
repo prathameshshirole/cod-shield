@@ -26,6 +26,7 @@ class Order_UI {
 	 * Hook registration.
 	 */
 	public function __construct() {
+		new Order_Editor();
 		// Columns — HPOS.
 		add_filter( 'woocommerce_shop_order_list_table_columns', array( $this, 'add_column' ), 10, 1 );
 		add_action( 'woocommerce_shop_order_list_table_custom_column', array( $this, 'render_column' ), 10, 2 );
@@ -126,7 +127,7 @@ class Order_UI {
 			return;
 		}
 
-		$label = wc_price( $view->advance );
+		$label = wc_price( 'paid' === $view->status ? $view->received : $view->advance, array( 'currency' => $view->currency ) );
 		$class = 'cod-shield-status cod-shield-status--' . ( in_array( $view->status, array( 'paid', 'pending', 'failed' ), true ) ? $view->status : 'pending' );
 
 		printf(
@@ -137,7 +138,7 @@ class Order_UI {
 					/* translators: 1: status, 2: remaining amount. */
 					__( 'Status: %1$s — %2$s due on delivery', 'cod-shield' ),
 					ucfirst( $view->status ),
-					wc_price( $view->remaining )
+					wc_price( $view->remaining, array( 'currency' => $view->currency ) )
 				)
 			),
 			wp_kses_post( $label ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
@@ -299,7 +300,8 @@ class Order_UI {
 
 		switch ( $filter ) {
 			case 'no_advance':
-				$meta_query[] = array(
+				$query_args['payment_method'] = 'cod';
+				$meta_query[]                 = array(
 					'key'     => Core::META_ADVANCE,
 					'compare' => 'NOT EXISTS',
 				);
@@ -349,6 +351,10 @@ class Order_UI {
 
 		switch ( $filter ) {
 			case 'no_advance':
+				$meta_query[] = array(
+					'key'   => '_payment_method',
+					'value' => 'cod',
+				);
 				$meta_query[] = array(
 					'key'     => Core::META_ADVANCE,
 					'compare' => 'NOT EXISTS',
@@ -400,7 +406,7 @@ class Order_UI {
 
 		add_meta_box(
 			'cod_shield_advance_box',
-			__( 'SureOrder — Advance Payment', 'cod-shield' ),
+			__( 'Partial COD payment', 'cod-shield' ),
 			array( $this, 'render_metabox' ),
 			$screen,
 			'side',
@@ -430,14 +436,32 @@ class Order_UI {
 			return;
 		}
 
-		$rows = array(
-			__( 'Advance collected', 'cod-shield' ) => wc_price( $view->advance ),
-			__( 'Status', 'cod-shield' )            => ucfirst( $view->status ? $view->status : 'pending' ),
-			__( 'Source', 'cod-shield' )            => $view->source_label(),
-			__( 'Gateway used', 'cod-shield' )      => $view->gateway ? $view->gateway : '—',
-			__( 'Transaction ID', 'cod-shield' )    => $view->txn ? $view->txn : '—',
-			__( 'Due on delivery', 'cod-shield' )   => wc_price( $view->remaining ),
+		$currency = array( 'currency' => $view->currency );
+		$rows     = array(
+			__( 'Order total', 'cod-shield' )            => wc_price( $view->total, $currency ),
+			__( 'Advance rule', 'cod-shield' )           => $view->mode ? $view->mode . ( '' !== $view->value ? ' · ' . $view->value : '' ) : '—',
+			__( 'Required advance', 'cod-shield' )       => wc_price( $view->advance, $currency ),
+			__( 'Advance received', 'cod-shield' )       => wc_price( $view->received, $currency ),
+			__( 'Status', 'cod-shield' )                 => ucfirst( $view->status ? $view->status : 'pending' ),
+			__( 'Source', 'cod-shield' )                 => $view->payment_source ? $view->payment_source : $view->source_label(),
+			__( 'Gateway used', 'cod-shield' )           => $view->gateway ? $view->gateway : '—',
+			__( 'Gateway transaction', 'cod-shield' )    => $view->txn ? $view->txn : '—',
+			__( 'Manual reference', 'cod-shield' )       => $view->manual_reference ? $view->manual_reference : '—',
+			__( 'Payment recorded (UTC)', 'cod-shield' ) => $view->paid_at ? gmdate( 'Y-m-d H:i', $view->paid_at ) : '—',
+			__( 'Outstanding balance', 'cod-shield' )    => wc_price( $view->remaining, $currency ),
 		);
+		if ( 'paid' !== $view->status ) {
+			$rows[ __( 'Expected balance after advance', 'cod-shield' ) ] = wc_price( $view->expected_remaining, $currency );
+		}
+		if ( $view->last_correction ) {
+			$rows[ __( 'Last correction', 'cod-shield' ) ] = sprintf(
+				/* translators: 1: user ID, 2: UTC timestamp, 3: reason. */
+				__( 'User #%1$d · %2$s UTC · %3$s', 'cod-shield' ),
+				(int) ( $view->last_correction['user_id'] ?? 0 ),
+				gmdate( 'Y-m-d H:i', (int) ( $view->last_correction['at'] ?? 0 ) ),
+				(string) ( $view->last_correction['reason'] ?? '' )
+			);
+		}
 
 		$attempt_state  = Core::instance()->payment_attempt_state( $order );
 		$attempt_labels = array(
@@ -461,7 +485,7 @@ class Order_UI {
 		}
 		echo '</ul>';
 
-		if ( 'stale' === $attempt_state && in_array( $view->status, array( 'pending', 'failed' ), true ) && $order->has_status( array( 'pending', 'failed' ) ) && current_user_can( 'edit_shop_order', $order->get_id() ) ) {
+		if ( 'stale' === $attempt_state && in_array( $view->status, array( 'pending', 'failed' ), true ) && $order->has_status( array( 'pending', 'failed', 'on-hold' ) ) && current_user_can( 'edit_shop_order', $order->get_id() ) ) {
 			$confirm = esc_js( __( 'Have you verified with the gateway that this attempt collected no money? Releasing permits another payment attempt. A delayed original payment could otherwise charge the customer twice.', 'cod-shield' ) );
 			echo '<input type="hidden" name="cod_shield_order_id" value="' . esc_attr( $order->get_id() ) . '" />';
 			wp_nonce_field( Core::NONCE_RELEASE_ATTEMPT . '_' . $order->get_id(), 'cod_shield_release_nonce', false );
@@ -470,17 +494,26 @@ class Order_UI {
 			echo '</button></p>';
 		}
 
-		// Manual reconciliation: when the advance is still outstanding (never
-		// recorded as paid via the gateway — e.g. the customer paid outside the
-		// gateway, or the gateway never recorded a transaction id), offer an
-		// explicit admin action instead of leaving the order stuck awaiting.
-		if ( $view->advance > 0 && 'paid' !== $view->status ) {
-			$confirm = esc_js( __( 'Mark the advance as paid without a gateway transaction? Only do this if you have collected the advance elsewhere (e.g. bank transfer or cash).', 'cod-shield' ) );
+		if ( current_user_can( 'edit_shop_order', $order->get_id() ) && ! Order_Editor::is_locked( $order ) && ! $order->has_status( array( 'cancelled', 'refunded', 'trash' ) ) ) {
+			echo '<details class="cod-shield-correction"><summary>' . esc_html__( 'Edit advance / record payment correction', 'cod-shield' ) . '</summary>';
 			echo '<input type="hidden" name="cod_shield_order_id" value="' . esc_attr( $order->get_id() ) . '" />';
-			wp_nonce_field( Core::NONCE_MANUAL_PAID . '_' . $order->get_id(), 'cod_shield_manual_paid_nonce', false );
-			echo '<p class="cod-shield-manual-paid-form"><button type="submit" name="action" value="' . esc_attr( Core::NONCE_MANUAL_PAID ) . '" formaction="' . esc_url( admin_url( 'admin-post.php' ) ) . '" formmethod="post" class="button button-link-delete" onclick="return confirm(\'' . $confirm . '\');">'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- esc_js() escapes the confirmation string used by the inline confirm call.
-			echo esc_html__( 'Mark advance as paid (manual)', 'cod-shield' );
-			echo '</button></p>';
+			wp_nonce_field( Order_Editor::ACTION . '_' . $order->get_id(), 'cod_shield_editor_nonce', false );
+			echo '<input type="hidden" name="cod_shield_edit_revision" value="' . esc_attr( Order_Editor::revision( $order ) ) . '" />';
+			echo '<p><label for="cod-shield-edit-kind">' . esc_html__( 'Field to correct', 'cod-shield' ) . '</label><br /><select id="cod-shield-edit-kind" name="cod_shield_edit_kind">';
+			echo '<option value="received">' . esc_html__( 'Advance actually received', 'cod-shield' ) . '</option>';
+			if ( $view->received <= 0 && ! $order->get_transaction_id() && ! $view->txn ) {
+				echo '<option value="required">' . esc_html__( 'Required advance', 'cod-shield' ) . '</option>';
+			}
+			echo '</select></p>';
+			foreach ( array(
+				'amount'    => __( 'Correct amount', 'cod-shield' ),
+				'reference' => __( 'Manual reference', 'cod-shield' ),
+				'reason'    => __( 'Reason for correction (required)', 'cod-shield' ),
+			) as $field => $label ) {
+				echo '<p><label for="cod-shield-edit-' . esc_attr( $field ) . '">' . esc_html( $label ) . '</label><br /><input class="widefat" type="text" id="cod-shield-edit-' . esc_attr( $field ) . '" name="cod_shield_edit_' . esc_attr( $field ) . '" value="" /></p>';
+			}
+			echo '<p>' . esc_html__( 'Enter the total advance received, not an additional payment. Saving records a correction only; it does not charge or refund the customer.', 'cod-shield' ) . '</p>';
+			echo '<p><button type="submit" name="action" value="' . esc_attr( Order_Editor::ACTION ) . '" formaction="' . esc_url( admin_url( 'admin-post.php' ) ) . '" formmethod="post" class="button">' . esc_html__( 'Save payment correction', 'cod-shield' ) . '</button></p></details>';
 		}
 
 		echo '<p class="cod-shield-metabox-note">' . esc_html__( 'Refunds of the advance must be processed manually through the gateway\'s own refund flow.', 'cod-shield' ) . '</p>';
@@ -534,7 +567,7 @@ class Order_UI {
 			'<tr class="cod-shield-admin-total"><th scope="row">%1$s</th><td style="color:%2$s;font-weight:600;">%3$s</td></tr>',
 			esc_html( $advance_label ),
 			esc_attr( $paid ? '#1a7f37' : '#9a6700' ),
-			wp_kses_post( wc_price( $view->advance ) ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			wp_kses_post( wc_price( $paid ? $view->received : $view->advance, array( 'currency' => $view->currency ) ) ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 		);
 
 		if ( $paid && $view->remaining > 0 ) {
@@ -542,7 +575,7 @@ class Order_UI {
 				'<tr class="cod-shield-admin-total"><th scope="row">%1$s</th><td style="color:%2$s;font-weight:600;">%3$s</td></tr>',
 				esc_html__( 'Due on delivery', 'cod-shield' ),
 				esc_attr( '#9a6700' ),
-				wp_kses_post( wc_price( $view->remaining ) ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+				wp_kses_post( wc_price( $view->remaining, array( 'currency' => $view->currency ) ) ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
 			);
 		}
 	}

@@ -57,7 +57,7 @@ class SettingsSectionMethodTest extends TestCase {
 		// Underscore slugs: WC builds the settings method as
 		// get_settings_for_{section}_section and a PHP method name cannot
 		// contain a hyphen, so the slugs must resolve to their underscore form.
-		$sections = array( '', 'advance', 'cod_fee', 'messaging', 'order_handling' );
+		$sections = array( '' );
 		foreach ( $sections as $section ) {
 			$method = Core::settings_method_for_section( $section );
 			$this->assertStringContainsString(

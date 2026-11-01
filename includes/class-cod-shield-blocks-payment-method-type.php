@@ -86,8 +86,8 @@ class Blocks_Payment_Method_Type extends \Automattic\WooCommerce\Blocks\Payments
 
 		return array(
 			'gateway_id'      => Core::GATEWAY_ID,
-			'title'           => Core::advance_checkout_title( $advance_plain ),
-			'button_label'    => Core::advance_button_label( $advance_plain ),
+			'title'           => __( 'Cash on delivery (with advance)', 'cod-shield' ),
+			'button_label'    => __( 'Pay advance & confirm COD', 'cod-shield' ),
 			'description'     => $message,
 			'message'         => $message,
 			'advance'         => $advance,

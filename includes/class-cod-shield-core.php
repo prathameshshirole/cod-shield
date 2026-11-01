@@ -55,15 +55,21 @@ class Core {
 	const NONCE_RELEASE_ATTEMPT = 'cod_shield_release_advance_attempt';
 
 	// Order meta keys (HPOS-safe, always read/written through WC_Order CRUD).
-	const META_ADVANCE         = '_cod_shield_advance_amount';
-	const META_MODE            = '_cod_shield_advance_mode';
-	const META_GATEWAY_USED    = '_cod_shield_gateway_used';
-	const META_TXN             = '_cod_shield_gateway_txn_id';
-	const META_STATUS          = '_cod_shield_advance_status';
-	const META_REMAINING       = '_cod_shield_remaining_due';
-	const META_ORIGINAL_TOTAL  = '_cod_shield_original_total';
-	const META_AWAITING        = '_cod_shield_awaiting_advance';
-	const META_ATTEMPT_STARTED = '_cod_shield_advance_attempt_started';
+	const META_ADVANCE          = '_cod_shield_advance_amount';
+	const META_MODE             = '_cod_shield_advance_mode';
+	const META_VALUE            = '_cod_shield_advance_value';
+	const META_RECEIVED         = '_cod_shield_received_amount';
+	const META_PAYMENT_SOURCE   = '_cod_shield_payment_source';
+	const META_PAID_AT          = '_cod_shield_paid_at';
+	const META_MANUAL_REFERENCE = '_cod_shield_manual_reference';
+	const META_LAST_CORRECTION  = '_cod_shield_last_correction';
+	const META_GATEWAY_USED     = '_cod_shield_gateway_used';
+	const META_TXN              = '_cod_shield_gateway_txn_id';
+	const META_STATUS           = '_cod_shield_advance_status';
+	const META_REMAINING        = '_cod_shield_remaining_due';
+	const META_ORIGINAL_TOTAL   = '_cod_shield_original_total';
+	const META_AWAITING         = '_cod_shield_awaiting_advance';
+	const META_ATTEMPT_STARTED  = '_cod_shield_advance_attempt_started';
 
 	const META_ATTEMPT_STARTED_AT = '_cod_shield_advance_attempt_started_at';
 
@@ -158,7 +164,6 @@ class Core {
 		new Emails();
 		new Ajax();
 		new Blocks();
-		new Eligibility();
 		new PDF_Support();
 
 		// Register the custom settings tab (WC_Settings_Page subclass).
@@ -185,7 +190,26 @@ class Core {
 	 */
 	public function get_option( $key, $fallback = null ) {
 		$defaults = self::get_defaults();
-		$value    = get_option( $key, $defaults[ $key ] ?? null );
+		// Retired controls must not keep affecting new checkouts invisibly.
+		$retired = array(
+			self::OPT_MIN               => 0,
+			self::OPT_MAX               => 0,
+			self::OPT_THRESHOLD         => 0,
+			self::OPT_FEE_ENABLED       => 'no',
+			self::OPT_COD_TITLE         => '',
+			self::OPT_FAILURE           => 'allow',
+			self::OPT_ORDER_STATUS      => 'processing',
+			self::OPT_MSG_ADV_ENABLED   => 'yes',
+			self::OPT_MSG_EMAIL_ENABLED => 'yes',
+			self::OPT_MSG_ADV_TEXT      => '',
+			self::OPT_MSG_EMAIL_TEXT    => '',
+			self::OPT_MSG_FREE_ENABLED  => 'no',
+			self::OPT_MSG_FREE_TEXT     => '',
+		);
+		if ( array_key_exists( $key, $retired ) ) {
+			return $retired[ $key ];
+		}
+		$value = get_option( $key, $defaults[ $key ] ?? null );
 		return ( null === $value ) ? $fallback : $value;
 	}
 
@@ -229,7 +253,7 @@ class Core {
 	 * @return bool
 	 */
 	public function cod_enabled() {
-		return 'yes' === $this->get_option( self::OPT_ENABLED, 'yes' );
+		return 'yes' === $this->get_option( self::OPT_ENABLED, 'yes' ) && in_array( $this->get_option( self::OPT_MODE, 'disabled' ), array( 'fixed', 'percentage' ), true );
 	}
 
 	/**
@@ -684,9 +708,11 @@ class Core {
 	/**
 	 * Describe the configured delegation gateway and its compatibility.
 	 *
+	 * @param string $saved_id Saved gateway ID for an existing order, if any.
+	 *
 	 * @return array{compatible:bool,code:string,gateway:\WC_Payment_Gateway|null}
 	 */
-	public function delegation_gateway_status() {
+	public function delegation_gateway_status( $saved_id = '' ) {
 		$unavailable = array(
 			'compatible' => false,
 			'code'       => 'woocommerce_unavailable',
@@ -697,7 +723,7 @@ class Core {
 			return $unavailable;
 		}
 
-		$id = self::resolve_delegation_gateway_id(
+		$id = '' !== $saved_id ? $saved_id : self::resolve_delegation_gateway_id(
 			$this->get_option( self::OPT_GATEWAYS, array() )
 		);
 		if ( '' === $id ) {
@@ -740,10 +766,11 @@ class Core {
 	 * filtered "available" list, to avoid recursion) and verifies it is
 	 * enabled.
 	 *
+	 * @param string $saved_id Saved gateway ID for an existing order, if any.
 	 * @return \WC_Payment_Gateway|null
 	 */
-	public function delegation_gateway() {
-		$status = $this->delegation_gateway_status();
+	public function delegation_gateway( $saved_id = '' ) {
+		$status = $this->delegation_gateway_status( $saved_id );
 		return $status['compatible'] ? $status['gateway'] : null;
 	}
 
@@ -792,7 +819,7 @@ class Core {
 
 		$total = (float) $total;
 
-		if ( 'disabled' === ( $settings['mode'] ?? 'disabled' ) || $total <= 0 ) {
+		if ( ! in_array( $settings['mode'] ?? '', array( 'fixed', 'percentage' ), true ) || ! is_finite( $total ) || $total <= 0 ) {
 			return 0.0;
 		}
 
@@ -818,9 +845,9 @@ class Core {
 		}
 
 		// Advance must never exceed the order total (zero-total edge case).
-		$amount = min( $amount, $total );
+		$amount = is_finite( $amount ) ? max( 0.0, min( $amount, $total ) ) : 0.0;
 
-		return round( $amount * 100 ) / 100;
+		return round( $amount, function_exists( 'wc_get_price_decimals' ) ? wc_get_price_decimals() : 2 );
 	}
 
 	/*
@@ -1075,7 +1102,7 @@ class Core {
 	 * @return bool
 	 */
 	public function order_advance_outstanding( $order ) {
-		if ( ! is_a( $order, '\WC_Order' ) || ! $this->cod_enabled() ) {
+		if ( ! is_a( $order, '\WC_Order' ) ) {
 			return false;
 		}
 		$advance = (float) $order->get_meta( self::META_ADVANCE );
