@@ -17,7 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.1"
+          php-version: "8.4"
           coverage: none
           tools: composer:v2
       - uses: ramsey/composer-install@v3
@@ -76,6 +76,8 @@ jobs:
           coverage: none
           tools: composer:v2
       - uses: ramsey/composer-install@v3
+      - name: Install Subversion
+        run: sudo apt-get update && sudo apt-get install --yes subversion
       - name: Install WordPress test environment
         run: bash bin/install-wp-tests.sh wordpress_test root '' 127.0.0.1:3306 "${{ matrix.wordpress }}"
       - name: Install declared WooCommerce version
