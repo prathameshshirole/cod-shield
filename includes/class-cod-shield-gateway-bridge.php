@@ -697,6 +697,7 @@ class Gateway_Bridge {
 		if ( ! $order ) {
 			return;
 		}
+		$order->read_meta_data( true );
 
 		$advance = (float) $order->get_meta( Core::META_ADVANCE );
 		if ( $advance <= 0 || ( 'paid' === $order->get_meta( Core::META_STATUS ) && 'review' !== $order->get_meta( Core::META_AWAITING ) ) ) {

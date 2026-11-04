@@ -262,7 +262,15 @@ final class Fake_Order {
 	public $notes              = array();
 	public $saves              = 0;
 	public $modified_age       = 7200;
-	public function read_meta_data( $force = false ) {}
+	private $persisted_meta = null;
+	public function remember_persisted_meta() {
+		$this->persisted_meta = $this->meta;
+	}
+	public function read_meta_data( $force = false ) {
+		if ( $force && null !== $this->persisted_meta ) {
+			$this->meta = $this->persisted_meta;
+		}
+	}
 	public function get_date_modified() {
 		return new DateTimeImmutable( '@' . ( time() - $this->modified_age ) );
 	}
@@ -795,6 +803,11 @@ $bridge->finalize_advance_order( $paid->id );
 $bridge->revert_unpaid_advance_status( $paid->id, 'pending', 'processing', $stale_hook_order );
 check( 'processing' === $stale_hook_order->get_status() && 'processing' === $paid->get_status(), 'paid: stale status-hook object cannot revert a finalized payment' );
 check( false === $bridge->prevent_auto_cancel_of_advance_order( true, $paid ), 'paid: recorded advance cannot be auto-cancelled' );
+$paid->remember_persisted_meta();
+$paid->update_meta_data( Core::META_STATUS, 'pending' );
+$paid->update_meta_data( Core::META_AWAITING, 'yes' );
+$bridge->revert_unpaid_advance_status( $paid->id, 'pending', 'processing', $paid );
+check( 'processing' === $paid->get_status() && 'paid' === $paid->get_meta( Core::META_STATUS ), 'paid: force persisted metadata even when reloaded order shares cached metadata' );
 $paid->update_meta_data( Core::META_AWAITING, 'review' );
 check( false === $bridge->prevent_auto_cancel_of_advance_order( true, $paid ), 'paid: reconciliation review cannot be auto-cancelled' );
 echo "\n" . sprintf( '%d tests, %d failures', $GLOBALS['tests'], $GLOBALS['failures'] ) . "\n";
