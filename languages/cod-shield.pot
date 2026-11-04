@@ -9,7 +9,7 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"POT-Creation-Date: 2026-11-01T13:06:49+00:00\n"
+"POT-Creation-Date: 2026-11-04T11:51:18+00:00\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "X-Generator: WP-CLI 2.12.0\n"
 "X-Domain: cod-shield\n"
@@ -269,11 +269,15 @@ msgstr ""
 msgid "The order could not be found, or its advance is already paid."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-bridge.php:709
+#: includes/class-cod-shield-gateway-bridge.php:708
 msgid "Moved back to pending: this order cannot be processing or completed while its COD advance is unpaid."
 msgstr ""
 
-#: includes/class-cod-shield-gateway-bridge.php:760
+#: includes/class-cod-shield-gateway-bridge.php:754
+msgid "Expired COD advance needs payment review: the gateway did not confirm an unpaid attempt. Verify payment before fulfilment, cancellation or retry."
+msgstr ""
+
+#: includes/class-cod-shield-gateway-bridge.php:865
 msgid "ADVANCE RECONCILIATION REQUIRED: this order was cancelled while an advance payment may have been captured. Verify with the gateway and refund if charged."
 msgstr ""
 

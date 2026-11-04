@@ -261,6 +261,16 @@ final class Fake_Order {
 	private $status            = 'pending';
 	public $notes              = array();
 	public $saves              = 0;
+	public $modified_age       = 7200;
+	public function read_meta_data( $force = false ) {}
+	public function get_date_modified() {
+		return new DateTimeImmutable( '@' . ( time() - $this->modified_age ) );
+	}
+	public function get_data_store() {
+		return new class {
+			public function read( $order ) {}
+		};
+	}
 
 	public function get_id() {
 		return $this->id;
@@ -738,6 +748,54 @@ $held_stale = make_advance_order( array_replace( $stale_meta, array( 'status' =>
 $held_nonce = 'valid:' . Core::NONCE_RELEASE_ATTEMPT . '_' . $held_stale->id;
 check( $bridge->release_stale_advance( $held_stale->id, $held_nonce ) && 'pending' === $held_stale->get_status(), '20. held stale attempt explicitly released to payable pending' );
 
-// ---------------------------------------------------------------- summary.
+$remote = array( 'id' => 'order_test', 'receipt' => '1', 'currency' => 'INR', 'amount' => 2000, 'amount_paid' => 0, 'status' => 'created', 'attempts' => 0 );
+$payments = array( 'count' => 0, 'items' => array() );
+check( Gateway_Bridge::is_verified_unpaid_attempt( $remote, $payments, 'order_test', '1', 2000, 'INR' ), 'expiry: untouched gateway order is unpaid' );
+foreach ( array( 'id' => 'order_other', 'receipt' => '2', 'currency' => 'USD', 'amount' => 10000, 'amount_paid' => 2000, 'status' => 'paid', 'attempts' => 1 ) as $key => $value ) {
+	check( ! Gateway_Bridge::is_verified_unpaid_attempt( array_replace( $remote, array( $key => $value ) ), $payments, 'order_test', '1', 2000, 'INR' ), 'expiry: rejects mismatched ' . $key );
+}
+foreach ( array( 'failed', 'authorized', 'captured', 'created', 'refunded', 'unknown' ) as $status ) {
+	$attempts = array( 'count' => 1, 'items' => array( array( 'order_id' => 'order_test', 'status' => $status ) ) );
+	check( ( 'failed' === $status ) === Gateway_Bridge::is_verified_unpaid_attempt( array_replace( $remote, array( 'attempts' => 1 ) ), $attempts, 'order_test', '1', 2000, 'INR' ), 'expiry: payment status ' . $status );
+}
+foreach ( array( null, array(), array( 'count' => 0, 'items' => null ) ) as $malformed ) {
+	check( ! Gateway_Bridge::is_verified_unpaid_attempt( $remote, $malformed, 'order_test', '1', 2000, 'INR' ), 'expiry: malformed response stays protected' );
+}
+class Expiry_Test_Bridge extends Gateway_Bridge {
+	public $verified = true;
+	public $callback = false;
+	public function __construct() {}
+	protected function verify_unpaid_advance( $order ): bool {
+		if ( $this->callback ) {
+			$order->set_transaction_id( 'callback-during-verification' );
+			$this->finalize_advance_order( $order );
+		}
+		return $this->verified;
+	}
+}
+$expiry = new Expiry_Test_Bridge();
+$expired = make_advance_order( $stale_meta );
+check( true === $expiry->prevent_auto_cancel_of_advance_order( true, $expired ), 'expiry: stale verified unpaid attempt allows cleanup' );
+$active = make_advance_order( array_replace( $stale_meta, array( Core::META_ATTEMPT_STARTED_AT => time() ) ) );
+check( false === $expiry->prevent_auto_cancel_of_advance_order( true, $active ), 'expiry: active attempt remains protected' );
+$legacy = make_advance_order();
+check( true === $expiry->prevent_auto_cancel_of_advance_order( true, $legacy ), 'expiry: old legacy attempt uses modification time' );
+$legacy->modified_age = 10;
+check( false === $expiry->prevent_auto_cancel_of_advance_order( true, $legacy ), 'expiry: recently modified legacy attempt remains protected' );
+$expiry->verified = false;
+$unknown = make_advance_order( $stale_meta );
+check( false === $expiry->prevent_auto_cancel_of_advance_order( true, $unknown ) && 'on-hold' === $unknown->get_status() && 'review' === $unknown->get_meta( Core::META_AWAITING ), 'expiry: unverified gateway outcome held for review' );
+$expiry->verified = true;
+$expiry->callback = true;
+$racing = make_advance_order( $stale_meta );
+check( false === $expiry->prevent_auto_cancel_of_advance_order( true, $racing ) && 'paid' === $racing->get_meta( Core::META_STATUS ), 'expiry: callback during verification prevents cancellation' );
+$paid = make_advance_order( array( 'txn' => 'captured-payment', 'status' => 'processing' ) );
+$stale_hook_order = clone $paid;
+$bridge->finalize_advance_order( $paid->id );
+$bridge->revert_unpaid_advance_status( $paid->id, 'pending', 'processing', $stale_hook_order );
+check( 'processing' === $stale_hook_order->get_status() && 'processing' === $paid->get_status(), 'paid: stale status-hook object cannot revert a finalized payment' );
+check( false === $bridge->prevent_auto_cancel_of_advance_order( true, $paid ), 'paid: recorded advance cannot be auto-cancelled' );
+$paid->update_meta_data( Core::META_AWAITING, 'review' );
+check( false === $bridge->prevent_auto_cancel_of_advance_order( true, $paid ), 'paid: reconciliation review cannot be auto-cancelled' );
 echo "\n" . sprintf( '%d tests, %d failures', $GLOBALS['tests'], $GLOBALS['failures'] ) . "\n";
 exit( $GLOBALS['failures'] > 0 ? 1 : 0 );

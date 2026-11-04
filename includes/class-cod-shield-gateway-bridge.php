@@ -692,11 +692,10 @@ class Gateway_Bridge {
 			return;
 		}
 
-		if ( ! is_a( $order, '\WC_Order' ) ) {
-			$order = wc_get_order( $order_id );
-			if ( ! $order ) {
-				return;
-			}
+		// Earlier status hooks finalize a separate object; the hook argument can be stale.
+		$order = wc_get_order( $order_id );
+		if ( ! $order ) {
+			return;
 		}
 
 		$advance = (float) $order->get_meta( Core::META_ADVANCE );
@@ -727,14 +726,120 @@ class Gateway_Bridge {
 		if ( ! $cancel || ! is_a( $order, '\WC_Order' ) ) {
 			return $cancel;
 		}
+		if ( (float) $order->get_meta( Core::META_ADVANCE ) > 0 &&
+			( $order->get_transaction_id() || $order->get_meta( Core::META_TXN ) ||
+			in_array( $order->get_meta( Core::META_STATUS ), array( 'paid', 'review' ), true ) ||
+			'review' === $order->get_meta( Core::META_AWAITING ) ) ) {
+			return false;
+		}
 
 		// Awaiting advance (charge initiated or captured but not finalized) —
 		// exempt from the unpaid-order canceller.
 		if ( 'yes' === $order->get_meta( Core::META_AWAITING ) ) {
+			if ( ! $this->advance_expiry_due( $order ) ) {
+				return false;
+			}
+			$verified = $this->verify_unpaid_advance( $order );
+			// Refresh after network I/O so a completed callback wins over expiry.
+			$order->get_data_store()->read( $order );
+			$order->read_meta_data( true );
+			if ( ! $this->advance_expiry_due( $order ) ) {
+				return false;
+			}
+			if ( $verified ) {
+				return true;
+			}
+			$order->update_meta_data( Core::META_AWAITING, 'review' );
+			$order->update_meta_data( Core::META_STATUS, 'review' );
+			$order->update_status( 'on-hold', __( 'Expired COD advance needs payment review: the gateway did not confirm an unpaid attempt. Verify payment before fulfilment, cancellation or retry.', 'cod-shield' ) );
 			return false;
 		}
 
 		return $cancel;
+	}
+
+	/**
+	 * Verify the exact Razorpay attempt without charging, capturing or refunding.
+	 * Unknown gateways and incomplete responses require manual review.
+	 *
+	 * @param \WC_Order $order Order being considered for expiry.
+	 * @return bool Whether the gateway confirms no live or collected payment.
+	 */
+	protected function verify_unpaid_advance( $order ): bool {
+		if ( 'razorpay' !== $order->get_meta( Core::META_GATEWAY_USED ) || 'razorpay' !== $order->get_payment_method() || 'INR' !== $order->get_currency() ) {
+			return false;
+		}
+		$id       = $order->get_meta( 'razorpay_order_id' . $order->get_id() );
+		$settings = get_option( 'woocommerce_razorpay_settings', array() );
+		if ( ! is_string( $id ) || ! preg_match( '/^order_[a-zA-Z0-9]+$/D', $id ) || empty( $settings['key_id'] ) || empty( $settings['key_secret'] ) ) {
+			return false;
+		}
+		$payloads = array();
+		foreach ( array( '', '/payments' ) as $suffix ) {
+			$response = wp_remote_get(
+				'https://api.razorpay.com/v1/orders/' . $id . $suffix,
+				array(
+					'timeout'     => 10,
+					'redirection' => 0,
+					'headers'     => array( 'Authorization' => 'Basic ' . base64_encode( $settings['key_id'] . ':' . $settings['key_secret'] ) ), // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- HTTP Basic authentication.
+				)
+			);
+			if ( is_wp_error( $response ) || 200 !== wp_remote_retrieve_response_code( $response ) ) {
+				return false;
+			}
+			$payloads[] = json_decode( wp_remote_retrieve_body( $response ), true );
+		}
+		return self::is_verified_unpaid_attempt( $payloads[0], $payloads[1], $id, (string) $order->get_id(), (int) round( (float) $order->get_meta( Core::META_ADVANCE ) * 100 ), $order->get_currency() );
+	}
+
+	/**
+	 * Older orders use modification time when no attempt timestamp exists.
+	 *
+	 * @param \WC_Order $order Order to inspect.
+	 * @return bool
+	 */
+	private function advance_expiry_due( $order ): bool {
+		if ( ! $order->has_status( 'pending' ) ) {
+			return false;
+		}
+		$core  = Core::instance();
+		$state = $core->payment_attempt_state( $order );
+		if ( 'stale' === $state ) {
+			return true;
+		}
+		if ( 'legacy_unknown' !== $state || '' !== $order->get_meta( Core::META_ATTEMPT_STARTED_AT ) ) {
+			return false;
+		}
+		$date = $order->get_date_modified();
+		return $date && time() - $date->getTimestamp() >= Core::normalize_stale_attempt_minutes( $core->get_option( Core::OPT_STALE_ATTEMPT_MINUTES, 60 ) ) * 60;
+	}
+
+	/**
+	 * Validate gateway identity, amount and every payment before permitting expiry.
+	 *
+	 * @param mixed  $remote Gateway order response.
+	 * @param mixed  $payments Gateway payment collection.
+	 * @param string $id Expected gateway order id.
+	 * @param string $receipt Expected merchant receipt.
+	 * @param int    $amount Expected amount in paise.
+	 * @param string $currency Expected currency.
+	 * @return bool
+	 */
+	public static function is_verified_unpaid_attempt( $remote, $payments, string $id, string $receipt, int $amount, string $currency ): bool {
+		if ( ! is_array( $remote ) || ! is_array( $payments ) || $amount <= 0 ||
+			( $remote['id'] ?? null ) !== $id || ( $remote['receipt'] ?? null ) !== $receipt ||
+			( $remote['currency'] ?? null ) !== $currency || ( $remote['amount'] ?? null ) !== $amount ||
+			0 !== ( $remote['amount_paid'] ?? null ) || ! in_array( $remote['status'] ?? '', array( 'created', 'attempted' ), true ) ||
+			! isset( $payments['items'], $payments['count'], $remote['attempts'] ) || ! is_array( $payments['items'] ) ||
+			count( $payments['items'] ) !== $payments['count'] || $remote['attempts'] !== $payments['count'] ) {
+			return false;
+		}
+		foreach ( $payments['items'] as $payment ) {
+			if ( ! is_array( $payment ) || ( $payment['order_id'] ?? null ) !== $id || 'failed' !== ( $payment['status'] ?? null ) ) {
+				return false;
+			}
+		}
+		return true;
 	}
 
 	/**
